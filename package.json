@@ -1,0 +1,12 @@
+{
+  "name": "pousada-vento-leste",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace @pousada/api & npm run dev --workspace @pousada/web & wait",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspace @pousada/api",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "engines": { "node": ">=24" }
+}
