@@ -2,12 +2,14 @@
 
 Este arquivo organiza desenvolvimento e evidências para o trabalho da **Pousada Vento Leste**. Cada pessoa implementa sua parte, testa o fluxo completo e entrega material para o PDF. A divisão pode ser ajustada pela equipe, mas as regras obrigatórias do cenário não podem ser omitidas.
 
-## Lucas Eduardo — base, integração e publicação
+## Lucas Eduardo — regras de disponibilidade, base e integração
 
 - Preparar e manter o monorepo, Docker Compose, PostgreSQL inicial, navegação e documentação de execução.
+- Implementar a regra de disponibilidade das reservas na API: consultar a capacidade do quarto, rejeitar hóspedes acima do limite e impedir períodos sobrepostos no mesmo quarto, tanto no cadastro quanto na edição. Permitir reservas consecutivas quando a saída de uma coincide com a entrada da outra.
+- Criar testes para capacidade excedida, conflito de datas, edição da própria reserva e períodos consecutivos. O João deve usar essa regra nas rotas, sem duplicar a validação.
 - Integrar os módulos de quartos e reservas; revisar contratos da API, estados de erro e consistência visual.
 - Configurar a hospedagem da API e do React na Railway, com um serviço PostgreSQL e `DATABASE_URL`; conferir links públicos até 10/12.
-- Documentar no PDF a visão geral, a arquitetura, a stack, a persistência, o fluxo de integração e a publicação. Fornecer captura da aplicação publicada e link do repositório.
+- Documentar no PDF a regra de disponibilidade com captura de uma tentativa bloqueada e links para o código e testes, além da visão geral, arquitetura, stack, persistência e publicação.
 
 ## Ana Raquel — interface de quartos
 
@@ -26,9 +28,9 @@ Este arquivo organiza desenvolvimento e evidências para o trabalho da **Pousada
 ## João Melo — serviço de reservas
 
 - Implementar as quatro operações de reservas e a listagem por quarto, preservando a relação com o quarto.
-- Validar campos obrigatórios, saída posterior à entrada, quantidade de hóspedes até a capacidade e ausência de sobreposição de datas no mesmo quarto, inclusive na edição.
-- Criar testes para casos válidos, quarto inexistente, lotação e conflitos de datas.
-- Documentar as regras de negócio com exemplos de requisição/resposta, capturas dos erros e links do código e testes.
+- Validar campos obrigatórios, saída posterior à entrada e existência do quarto; chamar a regra de disponibilidade implementada por Lucas antes de criar ou atualizar uma reserva.
+- Criar testes para as rotas, incluindo cadastro válido, edição, listagem, exclusão, quarto inexistente e propagação dos erros de disponibilidade.
+- Documentar os endpoints com exemplos de requisição/resposta, capturas e links do código e testes.
 
 ## Arrais — interface de reservas e consolidação das evidências
 
@@ -40,6 +42,7 @@ Este arquivo organiza desenvolvimento e evidências para o trabalho da **Pousada
 ## Acordos de integração
 
 - Ana e Oderlan combinam os campos e mensagens do módulo de quartos. Arrais e João fazem o mesmo para reservas.
+- Lucas e João definem a assinatura da regra de disponibilidade antes de implementar as rotas. João chama a regra nos fluxos de criação e edição; Lucas testa a regra isoladamente e o fluxo integrado.
 - Oderlan e João alinham as rotas no mesmo servidor e a forma de acessar o banco, evitando modificar a mesma área sem combinar.
 - Cada pessoa abre um pull request com descrição, comandos executados e evidências. Lucas revisa a integração; outra pessoa revisa as mudanças de Lucas.
 - Todos revisam o PDF final e confirmam **nome completo e matrícula** na capa, participação no AVA e envio individual até 27/11/2026. Como só temos nomes abreviados de alguns integrantes, a equipe precisa conferir os nomes completos antes de fechar a capa.
