@@ -3,7 +3,4 @@ node_modules
 **/dist
 **/*.tsbuildinfo
 .git
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
 N695_Proposta_de_Trabalho_2026_2.pdf

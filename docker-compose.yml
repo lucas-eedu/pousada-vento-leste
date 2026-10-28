@@ -1,16 +1,36 @@
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: pousada
+      POSTGRES_USER: pousada
+      POSTGRES_PASSWORD: pousada_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pousada -d pousada"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
       PORT: 3000
-      DATABASE_PATH: /data/pousada.sqlite
+      DATABASE_URL: postgres://pousada:pousada_dev@db:5432/pousada
       CORS_ORIGIN: http://localhost:5173
     ports:
       - "3000:3000"
+    command: npm run dev --workspace @pousada/api
     volumes:
-      - sqlite-data:/data
+      - ./apps/api/src:/app/apps/api/src:ro
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
@@ -25,9 +45,11 @@ services:
       API_PROXY_TARGET: http://api:3000
     ports:
       - "5173:5173"
+    volumes:
+      - ./apps/web/src:/app/apps/web/src:ro
     depends_on:
       api:
         condition: service_healthy
 
 volumes:
-  sqlite-data:
+  postgres-data:

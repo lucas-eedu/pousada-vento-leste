@@ -4,9 +4,9 @@ Este arquivo organiza desenvolvimento e evidências para o trabalho da **Pousada
 
 ## Lucas Eduardo — base, integração e publicação
 
-- Preparar e manter o monorepo, Docker Compose, SQLite inicial, navegação e documentação de execução.
+- Preparar e manter o monorepo, Docker Compose, PostgreSQL inicial, navegação e documentação de execução.
 - Integrar os módulos de quartos e reservas; revisar contratos da API, estados de erro e consistência visual.
-- Configurar a hospedagem da API e do React, garantindo persistência do SQLite em armazenamento durável; conferir links públicos até 10/12.
+- Configurar a hospedagem da API e do React na Railway, com um serviço PostgreSQL e `DATABASE_URL`; conferir links públicos até 10/12.
 - Documentar no PDF a visão geral, a arquitetura, a stack, a persistência, o fluxo de integração e a publicação. Fornecer captura da aplicação publicada e link do repositório.
 
 ## Ana Raquel — interface de quartos
@@ -18,7 +18,7 @@ Este arquivo organiza desenvolvimento e evidências para o trabalho da **Pousada
 
 ## Oderlan — serviço de quartos
 
-- Implementar as quatro rotas de quartos do contrato do README, com acesso ao SQLite, validação de entrada e respostas HTTP claras.
+- Implementar as quatro rotas de quartos do contrato do README, com acesso ao PostgreSQL, validação de entrada e respostas HTTP claras.
 - Impedir exclusão de quarto que possua reservas; tratar quarto inexistente e número de quarto repetido.
 - Criar testes para cadastro, atualização, listagem, erros de validação e exclusão bloqueada.
 - Documentar endpoints, exemplos de requisição/resposta, capturas de testes da API e links das rotas, validações e acesso a dados.
