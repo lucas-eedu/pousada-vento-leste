@@ -1,4 +1,6 @@
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { handlerRoomsRoutes } from './rooms/rooms.routes.js';
+
 
 function sendJson(response: ServerResponse, status: number, body: object): void {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -6,7 +8,7 @@ function sendJson(response: ServerResponse, status: number, body: object): void 
 }
 
 export function createServer() {
-  return createHttpServer((request: IncomingMessage, response: ServerResponse) => {
+  return createHttpServer(async (request: IncomingMessage, response: ServerResponse) => {
     const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
     response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -18,6 +20,9 @@ export function createServer() {
     }
     if (request.method === 'GET' && request.url === '/api/health') {
       sendJson(response, 200, { status: 'ok' });
+      return;
+    }
+    if (await handlerRoomsRoutes(request, response)){
       return;
     }
     sendJson(response, 404, { error: 'Rota não encontrada' });
