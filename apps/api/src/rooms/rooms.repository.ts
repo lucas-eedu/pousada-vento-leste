@@ -43,10 +43,18 @@ export async function createRoom(pool:Pool, room: RoomInput): Promise<Room> {
     return result.rows[0]!;
 }
 
-export async function updateRoom(pool:Pool, roomNumber: number, room: RoomInput): Promise<Room | undefined> {
+export async function updateRoom(pool:Pool, id: number, room: RoomInput): Promise<Room | undefined> {
     const result = await pool.query<Room>(
-        'UPDATE rooms SET (number, capacity, daily_rate, description) VALUES($1, $2, $3, $4) RETURNING *',
-        [room.number, room.capacity, room.daily_rate, room.description]
-    )
+       'UPDATE rooms SET number = $1, capacity = $2, daily_rate = $3, description = $4 WHERE id = $5 RETURNING *',
+        [ room.number, room.capacity, room.daily_rate, room.description, id]
+    );
     return result.rows[0];
+}
+
+export async function deleteRoom(pool:Pool, id: number): Promise<boolean> {
+    const result =  await pool.query(
+        'DELETE FROM rooms WHERE id = $1',
+        [id]
+    );
+    return (result.rowCount ?? 0) > 0;
 }
