@@ -42,3 +42,11 @@ export async function createRoom(pool:Pool, room: RoomInput): Promise<Room> {
 
     return result.rows[0]!;
 }
+
+export async function updateRoom(pool:Pool, roomNumber: number, room: RoomInput): Promise<Room | undefined> {
+    const result = await pool.query<Room>(
+        'UPDATE rooms SET (number, capacity, daily_rate, description) VALUES($1, $2, $3, $4) RETURNING *',
+        [room.number, room.capacity, room.daily_rate, room.description]
+    )
+    return result.rows[0];
+}
