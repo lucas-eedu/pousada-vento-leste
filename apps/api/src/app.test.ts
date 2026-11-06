@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from './app.js';
+import { Pool } from 'pg';
+
+const database = new Pool({
+    connectionString: process.env.DATABASE_URL
+});
 
 test('responde ao healthcheck e informa rotas ainda não implementadas', async () => {
-  const server = createServer();
+  const server = createServer(database);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Servidor sem porta');

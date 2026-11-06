@@ -1,13 +1,13 @@
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { handlerRoomsRoutes } from './rooms/rooms.routes.js';
-
+import type { Pool } from 'pg';
 
 function sendJson(response: ServerResponse, status: number, body: object): void {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   response.end(JSON.stringify(body));
 }
 
-export function createServer() {
+export function createServer(database: Pool) {
   return createHttpServer(async (request: IncomingMessage, response: ServerResponse) => {
     const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
     response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
@@ -22,7 +22,7 @@ export function createServer() {
       sendJson(response, 200, { status: 'ok' });
       return;
     }
-    if (await handlerRoomsRoutes(request, response)){
+    if (await handlerRoomsRoutes(request, response, database)) {
       return;
     }
     sendJson(response, 404, { error: 'Rota não encontrada' });

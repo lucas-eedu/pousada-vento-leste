@@ -76,6 +76,22 @@ O endpoint `/api/health` já funciona. As futuras rotas de quartos e reservas de
 
 No banco, `rooms.id` identifica um quarto. `reservations.room_id` aponta para ele. A chave estrangeira impede reservas para quartos inexistentes e impede excluir um quarto com reservas. O PostgreSQL também exige capacidade, diária e número de hóspedes positivos e saída posterior à entrada. As regras de **hóspedes dentro da capacidade** e **datas sem sobreposição** devem ser validadas no serviço antes de gravar. Para datas, use o formato ISO `AAAA-MM-DD`; intervalos podem encostar (`check_out` de uma reserva igual ao `check_in` de outra).
 
+### Documentação interativa dos quartos — Swagger
+
+As operações de gerenciamento de quartos estão documentadas no Swagger UI, permitindo visualizar os endpoints, consultar exemplos de requisições e respostas e executar testes diretamente pelo navegador.
+
+**Swagger UI:** http://localhost:3000/api/rooms/docs
+
+**Especificação OpenAPI:** http://localhost:3000/api/rooms/openapi.json
+
+Para iniciar somente a API e o PostgreSQL:
+
+```bash
+docker compose up -d --build api
+```
+
+A documentação contempla as operações `GET`, `POST`, `PUT` e `DELETE` de quartos, incluindo campos de entrada, códigos HTTP e respostas esperadas.
+
 ## Como contribuir
 
 1. Leia sua tarefa em [DIVISAO_DA_EQUIPE.md](DIVISAO_DA_EQUIPE.md) e confira o contrato acima.
