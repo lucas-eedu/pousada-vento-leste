@@ -76,6 +76,12 @@ O endpoint `/api/health` já funciona. As futuras rotas de quartos e reservas de
 
 No banco, `rooms.id` identifica um quarto. `reservations.room_id` aponta para ele. A chave estrangeira impede reservas para quartos inexistentes e impede excluir um quarto com reservas. O PostgreSQL também exige capacidade, diária e número de hóspedes positivos e saída posterior à entrada. As regras de **hóspedes dentro da capacidade** e **datas sem sobreposição** devem ser validadas no serviço antes de gravar. Para datas, use o formato ISO `AAAA-MM-DD`; intervalos podem encostar (`check_out` de uma reserva igual ao `check_in` de outra).
 
+### Regra de disponibilidade para as rotas de reservas
+
+O arquivo `apps/api/src/reservationAvailability.ts` oferece `withReservationAvailability(pool, input, save)`. Nas rotas de **criação e edição**, informe `roomId`, `guestCount`, `checkIn` e `checkOut`; na edição, informe também `excludeReservationId` com o ID da reserva editada. A função consulta a capacidade e os conflitos de datas, depois executa `save` na **mesma transação**. O callback `save` deve gravar usando o `client` recebido, nunca `pool.query`, para preservar essa garantia.
+
+As rotas devem validar campos obrigatórios e a ordem das datas antes de chamar essa função. Trate `ReservationAvailabilityError` conforme o `code`: `ROOM_NOT_FOUND` → HTTP 404, `CAPACITY_EXCEEDED` → HTTP 422 e `DATE_CONFLICT` → HTTP 409. A propriedade `message` já contém uma explicação para o usuário. Os testes em `apps/api/src/reservationAvailability.test.ts` mostram chamadas de criação e edição.
+
 ### Documentação interativa dos quartos — Swagger
 
 As operações de gerenciamento de quartos estão documentadas no Swagger UI, permitindo visualizar os endpoints, consultar exemplos de requisições e respostas e executar testes diretamente pelo navegador.
