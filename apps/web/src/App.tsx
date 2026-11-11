@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { RoomsPage } from './rooms/RoomsPage';
+import type { Room } from './rooms/roomsApi';
 
 type Section = 'inicio' | 'quartos' | 'reservas';
 
@@ -11,7 +13,7 @@ const sections: Record<Section, { title: string; eyebrow: string; description: s
   quartos: {
     title: 'Quartos',
     eyebrow: 'ACOMODAÇÕES',
-    description: 'Aqui a equipe irá cadastrar, consultar, editar e excluir os quartos da pousada.'
+    description: 'Cadastre, consulte, edite e exclua os quartos da pousada. Escolha um quarto para ver as reservas dele.'
   },
   reservas: {
     title: 'Reservas',
@@ -22,6 +24,7 @@ const sections: Record<Section, { title: string; eyebrow: string; description: s
 
 export function App() {
   const [section, setSection] = useState<Section>('inicio');
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [apiStatus, setApiStatus] = useState<'verificando' | 'conectada' | 'indisponível'>('verificando');
 
   useEffect(() => {
@@ -31,6 +34,16 @@ export function App() {
       .catch(() => setApiStatus('indisponível'));
   }, []);
 
+  function goTo(next: Section) {
+    if (next !== 'reservas') setSelectedRoom(null);
+    setSection(next);
+  }
+
+  function viewReservations(room: Room) {
+    setSelectedRoom(room);
+    setSection('reservas');
+  }
+
   const content = sections[section];
   return (
     <div className="app-shell">
@@ -38,9 +51,9 @@ export function App() {
         <div className="brand"><span className="brand-mark">✺</span><span>vento <strong>leste</strong><small>GESTÃO DA POUSADA</small></span></div>
         <div className="nav-label">ESPAÇO DE TRABALHO</div>
         <nav aria-label="Navegação principal">
-          <button className={section === 'inicio' ? 'active' : ''} onClick={() => setSection('inicio')}><span>⌂</span> Visão geral</button>
-          <button className={section === 'quartos' ? 'active' : ''} onClick={() => setSection('quartos')}><span>▦</span> Quartos</button>
-          <button className={section === 'reservas' ? 'active' : ''} onClick={() => setSection('reservas')}><span>▤</span> Reservas</button>
+          <button className={section === 'inicio' ? 'active' : ''} aria-current={section === 'inicio' ? 'page' : undefined} onClick={() => goTo('inicio')}><span>⌂</span> Visão geral</button>
+          <button className={section === 'quartos' ? 'active' : ''} aria-current={section === 'quartos' ? 'page' : undefined} onClick={() => goTo('quartos')}><span>▦</span> Quartos</button>
+          <button className={section === 'reservas' ? 'active' : ''} aria-current={section === 'reservas' ? 'page' : undefined} onClick={() => goTo('reservas')}><span>▤</span> Reservas</button>
         </nav>
         <div className="sidebar-footer"><span className="status-dot" data-status={apiStatus} /> API {apiStatus}</div>
       </aside>
@@ -50,10 +63,19 @@ export function App() {
           <div className="hero-copy"><p className="eyebrow">{content.eyebrow}</p><h1>{content.title}</h1><p>{content.description}</p></div>
           <div className="hero-art" aria-hidden="true"><span className="sun" /><span className="hill hill-back" /><span className="hill hill-front" /></div>
         </section>
-        <section className="content-card" aria-live="polite">
-          <div className="card-icon">{section === 'inicio' ? '✧' : section === 'quartos' ? '▦' : '▤'}</div>
-          <div><p className="eyebrow">EM CONSTRUÇÃO</p><h2>{section === 'inicio' ? 'Bem-vindo ao projeto' : `Módulo de ${section}`}</h2><p>{section === 'inicio' ? 'Esta é a base visual da aplicação. Use o menu para conhecer os espaços que serão desenvolvidos pela equipe.' : 'Esta área foi preparada para receber a listagem, os formulários e as mensagens de validação.'}</p></div>
-        </section>
+        {section === 'quartos' ? (
+          <RoomsPage onViewReservations={viewReservations} />
+        ) : (
+          <section className="content-card" aria-live="polite">
+            <div className="card-icon">{section === 'inicio' ? '✧' : '▤'}</div>
+            <div>
+              <p className="eyebrow">EM CONSTRUÇÃO</p>
+              <h2>{section === 'inicio' ? 'Bem-vindo ao projeto' : selectedRoom ? `Reservas do quarto ${selectedRoom.number}` : 'Módulo de reservas'}</h2>
+              <p>{section === 'inicio' ? 'Esta é a base visual da aplicação. Use o menu para conhecer os espaços que serão desenvolvidos pela equipe.' : 'Esta área foi preparada para receber a listagem, os formulários e as mensagens de validação.'}</p>
+              {selectedRoom && <button type="button" className="btn btn-ghost btn-small back-button" onClick={() => goTo('quartos')}>← Voltar aos quartos</button>}
+            </div>
+          </section>
+        )}
         <footer>Feito para uma rotina mais leve na Vento Leste.</footer>
       </main>
     </div>
