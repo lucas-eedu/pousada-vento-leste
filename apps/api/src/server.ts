@@ -7,7 +7,7 @@ const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('DATABASE_URL não definida. Inicie com docker compose up --build.');
 const database = new Pool({ connectionString });
 await initializeDatabase(database);
-const server = createServer();
+const server = createServer(database);
 
 server.listen(port, () => console.log(`API disponível em http://localhost:${port}`));
 

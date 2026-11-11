@@ -82,6 +82,22 @@ O arquivo `apps/api/src/reservationAvailability.ts` oferece `withReservationAvai
 
 As rotas devem validar campos obrigatórios e a ordem das datas antes de chamar essa função. Trate `ReservationAvailabilityError` conforme o `code`: `ROOM_NOT_FOUND` → HTTP 404, `CAPACITY_EXCEEDED` → HTTP 422 e `DATE_CONFLICT` → HTTP 409. A propriedade `message` já contém uma explicação para o usuário. Os testes em `apps/api/src/reservationAvailability.test.ts` mostram chamadas de criação e edição.
 
+### Documentação interativa dos quartos — Swagger
+
+As operações de gerenciamento de quartos estão documentadas no Swagger UI, permitindo visualizar os endpoints, consultar exemplos de requisições e respostas e executar testes diretamente pelo navegador.
+
+**Swagger UI:** http://localhost:3000/api/rooms/docs
+
+**Especificação OpenAPI:** http://localhost:3000/api/rooms/openapi.json
+
+Para iniciar somente a API e o PostgreSQL:
+
+```bash
+docker compose up -d --build api
+```
+
+A documentação contempla as operações `GET`, `POST`, `PUT` e `DELETE` de quartos, incluindo campos de entrada, códigos HTTP e respostas esperadas.
+
 ## Como contribuir
 
 1. Leia sua tarefa em [DIVISAO_DA_EQUIPE.md](DIVISAO_DA_EQUIPE.md) e confira o contrato acima.
