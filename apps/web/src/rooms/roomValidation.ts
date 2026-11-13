@@ -1,3 +1,4 @@
+
 import type { Room, RoomInput } from './roomsApi';
 
 /** Mesmo limite aplicado pela API em rooms.validation.ts. */
@@ -35,7 +36,11 @@ export function validateRoomForm(values: RoomFormValues): { errors: RoomFormErro
   const capacityText = values.capacity.trim();
   const dailyRateText = values.dailyRate.trim().replace(',', '.');
 
-  if (!number) errors.number = 'Informe o número do quarto.';
+  if (!number) {
+    errors.number = 'Informe o número do quarto.';
+  } else if (!/^[1-9]\d{2}$/.test(number)) {
+    errors.number = 'O número do quarto deve conter exatamente 3 dígitos numéricos.';
+  }
 
   const capacity = Number(capacityText);
   if (!capacityText) errors.capacity = 'Informe a capacidade.';
@@ -46,6 +51,10 @@ export function validateRoomForm(values: RoomFormValues): { errors: RoomFormErro
   if (!dailyRateText) errors.dailyRate = 'Informe o valor da diária.';
   else if (!/^\d+(\.\d{1,2})?$/.test(dailyRateText) || dailyRate <= 0) errors.dailyRate = 'A diária deve ser um valor positivo, com até duas casas decimais.';
   else if (dailyRate > MAX_DAILY_RATE) errors.dailyRate = 'O valor da diária é maior que o permitido.';
+
+  if (values.description.length > 500) {
+    errors.description = 'A descrição deve ter no máximo 500 caracteres.';
+  }
 
   if (Object.keys(errors).length > 0) return { errors };
   return { errors, input: { number, capacity, daily_rate: dailyRate, description: values.description.trim() } };
