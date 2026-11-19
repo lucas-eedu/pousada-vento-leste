@@ -145,6 +145,7 @@ export function ReservationForm({
             value={values.notes}
             onChange={e => update('notes', e.target.value)}
           />
+          {fieldError('notes')}
         </div>
 
       </div>

@@ -63,6 +63,12 @@ export function validateReservationForm(
 
   if (!guestName) {
     errors.guestName = 'Informe o nome do hóspede.';
+  } else if (guestName.length > 120) {
+    errors.guestName = 'Informe no máximo 120 caracteres.';
+  }
+
+  if (values.notes.trim().length > 500) {
+    errors.notes = 'Informe no máximo 500 caracteres.';
   }
 
   if (!Number.isSafeInteger(guestCount) || guestCount <= 0) {
