@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, type Room } from '../rooms/roomsApi';
 import { ReservationForm } from './ReservationForm';
 import {
@@ -27,6 +27,8 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [reservationToDelete, setReservationToDelete] = useState<Reservation | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   function errorMessage(error: unknown): string {
     return error instanceof ApiError
@@ -50,6 +52,20 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
   useEffect(() => {
     void loadReservations();
   }, [loadReservations]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+
+    if (!dialog) return;
+
+    if (reservationToDelete && !dialog.open) {
+      dialog.showModal();
+    }
+
+    if (!reservationToDelete && dialog.open) {
+      dialog.close();
+    }
+  }, [reservationToDelete]);
 
   function openForm(reservation: Reservation | null = null) {
     setEditing(reservation);
@@ -88,12 +104,6 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
   }
 
   async function handleDelete(reservation: Reservation) {
-    const confirmed = window.confirm(
-      `Deseja excluir a reserva de ${reservation.guest_name}?`
-    );
-
-    if (!confirmed) return;
-
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -112,6 +122,7 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
       setError(errorMessage(error));
     } finally {
       setSaving(false);
+      setReservationToDelete(null);
     }
   }
 
@@ -239,7 +250,7 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
 
                 <button
                   className="btn btn-danger btn-small"
-                  onClick={() => void handleDelete(reservation)}
+                  onClick={() => setReservationToDelete(reservation)}
                   disabled={saving}
                 >
                   Excluir
@@ -249,7 +260,50 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
           ))}
         </ul>
       )}
+      <dialog
+        ref={dialogRef}
+        className="confirm-dialog"
+        aria-labelledby="delete-reservation-title"
+        aria-describedby="delete-reservation-description"
+        onCancel={event => {
+          event.preventDefault();
+          if (!saving) setReservationToDelete(null);
+        }}
+      >
+        <h3 id="delete-reservation-title">
+          Excluir reserva?
+        </h3>
 
+        <p id="delete-reservation-description">
+          Deseja excluir a reserva de {reservationToDelete?.guest_name}?
+          Esta ação não pode ser desfeita.
+        </p>
+
+        <div className="form-actions">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setReservationToDelete(null)}
+            disabled={saving}
+            autoFocus
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={() => {
+              if (reservationToDelete) {
+                void handleDelete(reservationToDelete);
+              }
+            }}
+            disabled={saving}
+          >
+            {saving ? 'Excluindo...' : 'Excluir reserva'}
+          </button>
+        </div>
+      </dialog>
     </section>
   );
 }
