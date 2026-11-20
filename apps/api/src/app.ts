@@ -2,9 +2,15 @@ import { createServer as createHttpServer, type IncomingMessage, type ServerResp
 import type { Pool } from 'pg';
 import { handleReservationsRoutes } from './reservations/reservations.routes.js';
 import { handleRoomsRoutes } from './rooms/rooms.routes.js';
-import { getPathname, sendJson } from './utils/http.js';
+import { getPathname, sendInternalError, sendJson } from './utils/http.js';
+import { serveWebApp } from './webApp.js';
 
-export function createServer(database: Pool) {
+export interface ServerOptions {
+  /** Pasta do build do React. Quando informada, a API também serve a interface (publicação). */
+  webDistDir?: string;
+}
+
+export function createServer(database: Pool, options: ServerOptions = {}) {
   return createHttpServer(async (request: IncomingMessage, response: ServerResponse) => {
     const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
     response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
@@ -24,6 +30,14 @@ export function createServer(database: Pool) {
     }
     if (await handleRoomsRoutes(request, response, database)) {
       return;
+    }
+    if (options.webDistDir) {
+      try {
+        if (await serveWebApp(request, response, options.webDistDir)) return;
+      } catch (error) {
+        sendInternalError(response, 'servir a interface', error);
+        return;
+      }
     }
     sendJson(response, 404, { error: 'Rota não encontrada' });
   });
