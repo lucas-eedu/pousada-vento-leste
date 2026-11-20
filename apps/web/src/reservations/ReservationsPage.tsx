@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, type Room } from '../rooms/roomsApi';
+import { errorMessage } from '../api';
+import type { Room } from '../rooms/roomsApi';
 import { ReservationForm } from './ReservationForm';
 import {
   listReservations,
@@ -29,12 +30,6 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [reservationToDelete, setReservationToDelete] = useState<Reservation | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-
-  function errorMessage(error: unknown): string {
-    return error instanceof ApiError
-      ? error.message
-      : 'Ocorreu um erro inesperado.';
-  }
 
   const loadReservations = useCallback(async () => {
     setLoading(true);

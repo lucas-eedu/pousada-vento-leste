@@ -1,4 +1,4 @@
-import { request } from '../rooms/roomsApi';
+import { request } from '../api';
 
 export interface Reservation {
   id: number;
