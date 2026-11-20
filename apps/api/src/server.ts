@@ -7,9 +7,10 @@ const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('DATABASE_URL não definida. Inicie com docker compose up --build.');
 const database = new Pool({ connectionString });
 await initializeDatabase(database);
-const server = createServer(database);
+// Na publicação, WEB_DIST_DIR aponta para o build do React e a API serve a interface.
+const server = createServer(database, { webDistDir: process.env.WEB_DIST_DIR });
 
-server.listen(port, () => console.log(`API disponível em http://localhost:${port}`));
+server.listen(port, () => console.log(`Servidor disponível na porta ${port}`));
 
 function shutdown(): void {
   server.close(async () => {

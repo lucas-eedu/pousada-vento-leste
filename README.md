@@ -155,6 +155,28 @@ docker compose up -d --build api
 
 A documentação contempla as operações `GET`, `POST`, `PUT` e `DELETE` de quartos, incluindo campos de entrada, códigos HTTP e respostas esperadas.
 
+## Publicação
+
+Na publicação, a interface e a API ficam no **mesmo endereço**: o `Dockerfile` da raiz compila as duas aplicações e executa só a API, que também serve o build do React (`apps/web/dist`). Assim, as chamadas a `/api` funcionam sem o proxy do Vite e sem configurar CORS. Caminhos que não começam com `/api` devolvem a interface.
+
+Na Railway:
+
+1. Crie um serviço **PostgreSQL**.
+2. Crie um serviço a partir deste repositório. O `railway.json` indica o `Dockerfile` e o healthcheck em `/api/health`.
+3. No serviço da aplicação, defina `DATABASE_URL` com a referência à variável do PostgreSQL (`${{Postgres.DATABASE_URL}}`). A Railway define `PORT` sozinha.
+4. Gere o domínio público em *Settings → Networking*.
+
+As tabelas são criadas automaticamente quando a API inicia. Para testar a imagem localmente com o banco do Compose:
+
+```bash
+docker build -t pousada-prod .
+docker run --rm -p 8080:8080 -e PORT=8080 \
+  -e DATABASE_URL=postgres://pousada:pousada_dev@db:5432/pousada \
+  --network n695-desenv-plataformas-web_default pousada-prod
+```
+
+Depois, abra http://localhost:8080.
+
 ## Como contribuir
 
 1. Leia sua tarefa em [DIVISAO_DA_EQUIPE.md](DIVISAO_DA_EQUIPE.md) e confira o contrato acima.
