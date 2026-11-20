@@ -6,6 +6,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Evento disparado quando a API recusa a sessão (expirada ou encerrada). */
+export const SESSION_EXPIRED_EVENT = 'pousada:session-expired';
+
 /** Faz a requisição à API própria e devolve o JSON, ou lança ApiError com a mensagem do servidor. */
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
@@ -23,6 +26,10 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     const message = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
       ? body.error
       : `Erro inesperado da API (HTTP ${response.status}).`;
+    // Fora das rotas de autenticação, 401 significa que a sessão acabou: a tela de login volta a aparecer.
+    if (response.status === 401 && !path.startsWith('/api/auth/')) {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     throw new ApiError(message, response.status);
   }
   return body as T;

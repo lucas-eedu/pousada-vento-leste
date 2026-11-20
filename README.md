@@ -41,11 +41,11 @@ Cada módulo da API separa as camadas: `*.routes.ts` trata HTTP, `*.validation.t
 **Pré-requisito:** Docker Engine com o plugin Compose ou Docker Desktop. Não é necessário instalar Node ou PostgreSQL na máquina.
 
 1. Na raiz do projeto, execute `docker compose up --build`.
-2. Abra **http://localhost:5173** no navegador.
+2. Abra **http://localhost:5173** no navegador e entre com o usuário `admin` e a senha `pousada_dev`, definidos no `docker-compose.yml` apenas para desenvolvimento.
 3. A API responde em **http://localhost:3000/api/health**. Uma resposta `{"status":"ok"}` confirma que o servidor iniciou e conectou ao banco.
 4. Para parar, pressione `Ctrl+C` e execute `docker compose down`.
 
-O PostgreSQL usa o volume `postgres-data`, que continua disponível após `docker compose down`. **`docker compose down -v` apaga esse volume e todos os dados de teste.** O Compose também expõe o banco apenas em `127.0.0.1:5432` para ferramentas locais. A senha `pousada_dev` é apenas para desenvolvimento e não deve ser usada na publicação.
+O PostgreSQL usa o volume `postgres-data`, que continua disponível após `docker compose down`. **`docker compose down -v` apaga esse volume e todos os dados de teste.** O Compose também expõe o banco apenas em `127.0.0.1:5432` para ferramentas locais. As senhas `pousada_dev` do banco e do administrador são apenas para desenvolvimento e não devem ser usadas na publicação.
 
 ## Como executar a API e a interface fora do Docker
 
@@ -53,7 +53,8 @@ O PostgreSQL usa o volume `postgres-data`, que continua disponível após `docke
 
 ```bash
 npm install
-DATABASE_URL=postgres://pousada:pousada_dev@localhost:5432/pousada npm run dev
+DATABASE_URL=postgres://pousada:pousada_dev@localhost:5432/pousada \
+  ADMIN_USERNAME=admin ADMIN_PASSWORD=pousada_dev npm run dev
 ```
 
 Abra http://localhost:5173. O Vite encaminha `/api` para `http://localhost:3000`. `Ctrl+C` encerra os processos Node; para parar o banco, execute `docker compose down`. Se as portas 3000, 5173 ou 5432 estiverem em uso, libere-as antes de iniciar.
@@ -73,7 +74,21 @@ Abra http://localhost:5173. O Vite encaminha `/api` para `http://localhost:3000`
 
 O navegador acessa o React na porta 5173. A interface faz requisições a URLs iniciadas por `/api`. Durante o desenvolvimento, o Vite encaminha essas requisições ao servidor Node na porta 3000. O servidor valida a entrada, executa as regras de negócio e consulta o PostgreSQL pela variável `DATABASE_URL`. As respostas são JSON; os erros têm status HTTP apropriado e uma mensagem compreensível para o usuário.
 
-O endpoint `/api/health` confirma que a API está no ar. As rotas de quartos e reservas são:
+### Acesso de administrador
+
+O sistema tem um único acesso de administrador, sem cadastro de usuários: é uma ferramenta interna da pousada. O usuário e a senha vêm das variáveis de ambiente `ADMIN_USERNAME` e `ADMIN_PASSWORD`, e a API não inicia sem elas. Assim, a senha não fica no código nem no banco.
+
+| Método | Rota | Ação |
+|---|---|---|
+| `POST` | `/api/auth/login` | Entrar com `{ "username": "...", "password": "..." }`. Responde 401 com `Usuário ou senha incorretos.` |
+| `POST` | `/api/auth/logout` | Sair |
+| `GET` | `/api/auth/session` | Usuário conectado, ou 401 |
+
+O login cria um cookie de sessão assinado (`HttpOnly`, `SameSite=Strict` e `Secure` em HTTPS), válido por 8 horas. Todas as rotas de quartos e reservas respondem **401** (`Faça login para continuar.`) sem esse cookie; `/api/health` e a documentação Swagger continuam públicas. `SESSION_SECRET` é opcional: sem ela, a API gera uma chave aleatória a cada início, e as sessões abertas expiram quando o servidor reinicia. O código fica em `apps/api/src/auth/` e `apps/web/src/auth/`.
+
+### Rotas
+
+O endpoint `/api/health` confirma que a API está no ar. As rotas de quartos e reservas, que exigem login, são:
 
 | Método | Rota | Ação |
 |---|---|---|
@@ -134,7 +149,12 @@ Respostas de sucesso devolvem a reserva com `id`, `room_id`, os campos acima e `
 | Hóspedes acima da capacidade | 422 | `O número de hóspedes excede a capacidade do quarto.` |
 
 ```bash
-curl -X POST http://localhost:3000/api/rooms/1/reservations \
+# Entra e guarda o cookie de sessão em cookies.txt
+curl -c cookies.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"pousada_dev"}'
+
+curl -b cookies.txt -X POST http://localhost:3000/api/rooms/1/reservations \
   -H 'Content-Type: application/json' \
   -d '{"guest_name":"Maria Souza","guest_count":2,"check_in":"2026-12-10","check_out":"2026-12-12"}'
 ```
@@ -163,7 +183,7 @@ Na Railway:
 
 1. Crie um serviço **PostgreSQL**.
 2. Crie um serviço a partir deste repositório. O `railway.json` indica o `Dockerfile` e o healthcheck em `/api/health`.
-3. No serviço da aplicação, defina `DATABASE_URL` com a referência à variável do PostgreSQL (`${{Postgres.DATABASE_URL}}`). A Railway define `PORT` sozinha.
+3. No serviço da aplicação, defina `DATABASE_URL` com a referência à variável do PostgreSQL (`${{Postgres.DATABASE_URL}}`), e também `ADMIN_USERNAME` e `ADMIN_PASSWORD` com o acesso de administrador. Sem elas, a API não inicia. A Railway define `PORT` sozinha.
 4. Gere o domínio público em *Settings → Networking*.
 
 As tabelas são criadas automaticamente quando a API inicia. Para testar a imagem localmente com o banco do Compose:
@@ -172,6 +192,7 @@ As tabelas são criadas automaticamente quando a API inicia. Para testar a image
 docker build -t pousada-prod .
 docker run --rm -p 8080:8080 -e PORT=8080 \
   -e DATABASE_URL=postgres://pousada:pousada_dev@db:5432/pousada \
+  -e ADMIN_USERNAME=admin -e ADMIN_PASSWORD=pousada_dev \
   --network n695-desenv-plataformas-web_default pousada-prod
 ```
 

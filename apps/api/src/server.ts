@@ -1,14 +1,16 @@
 import { createServer } from './app.js';
 import { Pool } from 'pg';
+import { loadAuthConfig } from './auth/auth.config.js';
 import { initializeDatabase } from './database.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('DATABASE_URL não definida. Inicie com docker compose up --build.');
+const auth = loadAuthConfig(process.env);
 const database = new Pool({ connectionString });
 await initializeDatabase(database);
 // Na publicação, WEB_DIST_DIR aponta para o build do React e a API serve a interface.
-const server = createServer(database, { webDistDir: process.env.WEB_DIST_DIR });
+const server = createServer(database, { webDistDir: process.env.WEB_DIST_DIR, auth });
 
 server.listen(port, () => console.log(`Servidor disponível na porta ${port}`));
 
