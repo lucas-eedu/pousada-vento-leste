@@ -23,7 +23,12 @@ const sections: Record<Section, { title: string; eyebrow: string; description: s
   }
 };
 
-export function App() {
+interface AppProps {
+  username: string;
+  onLogout: () => void;
+}
+
+export function App({ username, onLogout }: AppProps) {
   const [section, setSection] = useState<Section>('inicio');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [apiStatus, setApiStatus] = useState<'verificando' | 'conectada' | 'indisponível'>('verificando');
@@ -56,6 +61,10 @@ export function App() {
           <button className={section === 'quartos' ? 'active' : ''} aria-current={section === 'quartos' ? 'page' : undefined} onClick={() => goTo('quartos')}><span>▦</span> Quartos</button>
           <button className={section === 'reservas' ? 'active' : ''} aria-current={section === 'reservas' ? 'page' : undefined} onClick={() => goTo('reservas')}><span>▤</span> Reservas</button>
         </nav>
+        <div className="sidebar-user">
+          <span>Conectado como <strong>{username}</strong></span>
+          <button type="button" onClick={onLogout}>Sair</button>
+        </div>
         <div className="sidebar-footer"><span className="status-dot" data-status={apiStatus} /> API {apiStatus}</div>
       </aside>
       <main className="main">
