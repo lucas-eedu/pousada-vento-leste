@@ -161,6 +161,9 @@ test('Deve validar o número do quarto', () => {
     assert.equal(validateRoomNumber(' 101 '), true);
     assert.equal(validateRoomNumber(''), false);
     assert.equal(validateRoomNumber('   '), false);
+    assert.equal(validateRoomNumber('099'), false);
+    assert.equal(validateRoomNumber('1001'), false);
+    assert.equal(validateRoomNumber('10A'), false);
     assert.equal(validateRoomNumber(101), false);
 });
 

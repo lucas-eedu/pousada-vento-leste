@@ -1,5 +1,6 @@
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { handlerRoomsRoutes } from './rooms/rooms.routes.js';
+import { handleReservationsRoutes } from './reservations/reservations.routes.js';
 import type { Pool } from 'pg';
 
 function sendJson(response: ServerResponse, status: number, body: object): void {
@@ -20,6 +21,9 @@ export function createServer(database: Pool) {
     }
     if (request.method === 'GET' && request.url === '/api/health') {
       sendJson(response, 200, { status: 'ok' });
+      return;
+    }
+    if (await handleReservationsRoutes(request, response, database)) {
       return;
     }
     if (await handlerRoomsRoutes(request, response, database)) {

@@ -82,6 +82,31 @@ O arquivo `apps/api/src/reservationAvailability.ts` oferece `withReservationAvai
 
 As rotas devem validar campos obrigatórios e a ordem das datas antes de chamar essa função. Trate `ReservationAvailabilityError` conforme o `code`: `ROOM_NOT_FOUND` → HTTP 404, `CAPACITY_EXCEEDED` → HTTP 422 e `DATE_CONFLICT` → HTTP 409. A propriedade `message` já contém uma explicação para o usuário. Os testes em `apps/api/src/reservationAvailability.test.ts` mostram chamadas de criação e edição.
 
+### Rotas de reservas
+
+Implementadas em `apps/api/src/reservations/` (rotas, validação e acesso ao banco) e testadas com PostgreSQL real em `reservations.test.ts`. O corpo de criação e edição é o mesmo; `notes` é opcional:
+
+```json
+{ "guest_name": "Maria Souza", "guest_count": 2, "check_in": "2026-12-10", "check_out": "2026-12-12", "notes": "Chegada após 22h" }
+```
+
+Respostas de sucesso devolvem a reserva com `id`, `room_id`, os campos acima e `created_at`. As datas sempre voltam como texto `AAAA-MM-DD`. A listagem vem ordenada pela data de entrada. Na edição, a reserva continua no mesmo quarto.
+
+| Situação | Status | Exemplo de `error` |
+|---|---|---|
+| Criação | 201 | — |
+| Listagem, edição, exclusão | 200 | exclusão: `{ "message": "Reserva excluída com sucesso." }` |
+| Campo ausente/inválido, saída não posterior à entrada, ID inválido, JSON inválido | 400 | `A data de saída deve ser posterior à data de entrada.` |
+| Quarto ou reserva inexistente | 404 | `Quarto não encontrado.` / `Reserva não encontrada.` |
+| Período sobreposto no mesmo quarto | 409 | `Já existe uma reserva para esse quarto no período informado.` |
+| Hóspedes acima da capacidade | 422 | `O número de hóspedes excede a capacidade do quarto.` |
+
+```bash
+curl -X POST http://localhost:3000/api/rooms/1/reservations \
+  -H 'Content-Type: application/json' \
+  -d '{"guest_name":"Maria Souza","guest_count":2,"check_in":"2026-12-10","check_out":"2026-12-12"}'
+```
+
 ### Documentação interativa dos quartos — Swagger
 
 As operações de gerenciamento de quartos estão documentadas no Swagger UI, permitindo visualizar os endpoints, consultar exemplos de requisições e respostas e executar testes diretamente pelo navegador.
