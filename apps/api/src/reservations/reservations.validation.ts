@@ -1,18 +1,13 @@
 import type { ReservationInput } from './reservations.repository.js';
 
-const MAX_ID = 2147483647;
+/** Maior valor da coluna INTEGER do PostgreSQL. */
+const MAX_INTEGER = 2147483647;
 const MAX_GUEST_NAME_LENGTH = 120;
 const MAX_NOTES_LENGTH = 500;
 
 export type ReservationValidationResult =
   | { ok: true; input: ReservationInput }
   | { ok: false; error: string };
-
-export function parseId(rawId: string): number | null {
-  if (!/^\d+$/.test(rawId)) return null;
-  const id = Number(rawId);
-  return Number.isSafeInteger(id) && id > 0 && id <= MAX_ID ? id : null;
-}
 
 /** Aceita apenas datas reais no formato AAAA-MM-DD (rejeita, por exemplo, 2026-02-30). */
 export function isIsoDate(value: unknown): value is string {
@@ -40,7 +35,7 @@ export function validateReservationInput(data: unknown): ReservationValidationRe
   }
 
   const guestCount = body.guest_count;
-  if (typeof guestCount !== 'number' || !Number.isInteger(guestCount) || guestCount <= 0 || guestCount > MAX_ID) {
+  if (typeof guestCount !== 'number' || !Number.isInteger(guestCount) || guestCount <= 0 || guestCount > MAX_INTEGER) {
     return { ok: false, error: 'A quantidade de hóspedes deve ser um número inteiro positivo.' };
   }
 

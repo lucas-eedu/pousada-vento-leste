@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Pool } from 'pg';
-import { handlerRoomsRoutes } from './rooms.routes.js';
-import { parseRoomId, validateCapacity, validateDailyRate, validateDescription, validateId, validateRoomInput, validateRoomNumber } from './rooms.validation.js';
+import { isValidId, parseId } from '../utils/ids.js';
+import { handleRoomsRoutes } from './rooms.routes.js';
+import { parseRoomInput, validateCapacity, validateDailyRate, validateDescription, validateRoomInput, validateRoomNumber } from './rooms.validation.js';
 
 interface TestRoom {
     id: number;
@@ -25,13 +26,31 @@ function roomBody(number = '101') {
     };
 }
 
-async function withApi(run: (url: string, rooms: TestRoom[], blocked: Set<number>) => Promise<void>): Promise<void> {
+/**
+ * Simula o PostgreSQL em memória. `blocked` marca quartos com reservas (a
+ * exclusão falha) e `largestGuests` guarda o maior número de hóspedes reservado
+ * em cada quarto.
+ */
+async function withApi(run: (url: string, rooms: TestRoom[], blocked: Set<number>, largestGuests: Map<number, number>) => Promise<void>): Promise<void> {
     const rooms: TestRoom[] = [];
     const blocked = new Set<number>();
+    const largestGuests = new Map<number, number>();
     let nextId = 1;
 
-    const database = {
-        query: async (sql: string, values: unknown[] = []) => {
+    const query = async (sql: string, values: unknown[] = []) => {
+            if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql)) {
+                return {rows: [], rowCount: 0};
+            }
+
+            if (sql.includes('FOR UPDATE')) {
+                const found = rooms.filter(room => room.id === values[0]);
+                return {rows: found, rowCount: found.length};
+            }
+
+            if (sql.includes('MAX(guest_count)')) {
+                return {rows: [{largest: largestGuests.get(Number(values[0])) ?? 0}], rowCount: 1};
+            }
+
             if (sql.startsWith('SELECT')) {
                 return {
                     rows: [...rooms].sort((a, b) => a.number.localeCompare(b.number))
@@ -97,12 +116,16 @@ async function withApi(run: (url: string, rooms: TestRoom[], blocked: Set<number
             }
 
             throw new Error('Consulta não implementada no teste.');
-        }
+    };
+
+    const database = {
+        query,
+        connect: async () => ({query, release: () => undefined})
     } as unknown as Pool;
 
     const server = createServer(async (request, response) => {
         try {
-            const handled = await handlerRoomsRoutes(request, response, database);
+            const handled = await handleRoomsRoutes(request, response, database);
 
             if (!handled) {
                 response.writeHead(404);
@@ -125,7 +148,7 @@ async function withApi(run: (url: string, rooms: TestRoom[], blocked: Set<number
     const url = `http://127.0.0.1:${address.port}`;
 
     try {
-        await run(url, rooms, blocked);
+        await run(url, rooms, blocked, largestGuests);
     } finally {
         await new Promise<void>((resolve, reject) => {
             server.close(error => {
@@ -184,22 +207,22 @@ test('Deve validar a descrição do quarto', () => {
 });
 
 test('Deve validar o ID do quarto', () => {
-    assert.equal(validateId(1), true);
-    assert.equal(validateId(2147483647), true);
-    assert.equal(validateId(0), false);
-    assert.equal(validateId(-1), false);
-    assert.equal(validateId(1.5), false);
-    assert.equal(validateId(2147483648), false);
+    assert.equal(isValidId(1), true);
+    assert.equal(isValidId(2147483647), true);
+    assert.equal(isValidId(0), false);
+    assert.equal(isValidId(-1), false);
+    assert.equal(isValidId(1.5), false);
+    assert.equal(isValidId(2147483648), false);
 });
 
 test('Deve converter e validar o ID recebido pela URL', () => {
-    assert.equal(parseRoomId('1'), 1);
-    assert.equal(parseRoomId('25'), 25);
-    assert.equal(parseRoomId('0'), null);
-    assert.equal(parseRoomId('-1'), null);
-    assert.equal(parseRoomId('abc'), null);
-    assert.equal(parseRoomId('1.5'), null);
-    assert.equal(parseRoomId('2147483648'), null);
+    assert.equal(parseId('1'), 1);
+    assert.equal(parseId('25'), 25);
+    assert.equal(parseId('0'), null);
+    assert.equal(parseId('-1'), null);
+    assert.equal(parseId('abc'), null);
+    assert.equal(parseId('1.5'), null);
+    assert.equal(parseId('2147483648'), null);
 });
 
 test('Deve validar os dados de cadastro do quarto', () => {
@@ -210,6 +233,26 @@ test('Deve validar os dados de cadastro do quarto', () => {
     assert.equal(validateRoomInput({...roomBody(), description: null}), false);
     assert.equal(validateRoomInput(null), false);
     assert.equal(validateRoomInput([]), false);
+});
+
+test('Deve informar qual campo do quarto está inválido', () => {
+    assert.deepEqual(parseRoomInput({...roomBody(), number: '  '}), {ok: false, error: 'Informe o número do quarto.'});
+    assert.deepEqual(parseRoomInput({...roomBody(), number: '10A'}), {ok: false, error: 'O número do quarto deve ter 3 dígitos, de 100 a 999.'});
+    assert.deepEqual(parseRoomInput({...roomBody(), capacity: 5}), {ok: false, error: 'A capacidade deve ser um número inteiro de 1 a 4 hóspedes.'});
+    assert.deepEqual(parseRoomInput({...roomBody(), daily_rate: 0}), {ok: false, error: 'A diária deve ser um valor positivo, com até duas casas decimais.'});
+    assert.deepEqual(parseRoomInput({...roomBody(), description: 'x'.repeat(501)}), {ok: false, error: 'A descrição deve ser um texto de no máximo 500 caracteres.'});
+    assert.deepEqual(parseRoomInput({...roomBody(' 101 '), description: ' Vista '}), {
+        ok: true,
+        input: {number: '101', capacity: 2, daily_rate: 180.50, description: 'Vista'}
+    });
+});
+
+test('Deve listar os quartos mesmo com query string na URL', async () => {
+    await withApi(async url => {
+        const response = await send(`${url}/api/rooms?ordem=numero`, 'GET');
+
+        assert.equal(response.status, 200);
+    });
 });
 
 test('Deve listar os quartos cadastrados', async () => {
@@ -285,6 +328,7 @@ test('Deve rejeitar dados inválidos no cadastro', async () => {
         });
 
         assert.equal(response.status, 400);
+        assert.equal((await response.json()).error, 'A capacidade deve ser um número inteiro de 1 a 4 hóspedes.');
     });
 });
 
@@ -346,6 +390,32 @@ test('Deve impedir atualização com número duplicado', async () => {
         const response = await send(`${url}/api/rooms/2`, 'PUT', roomBody('101'));
 
         assert.equal(response.status, 409);
+    });
+});
+
+test('Deve impedir reduzir a capacidade abaixo de uma reserva existente', async () => {
+    await withApi(async (url, rooms, _blocked, largestGuests) => {
+        await send(`${url}/api/rooms`, 'POST', {...roomBody(), capacity: 3});
+        largestGuests.set(rooms[0].id, 3);
+
+        const response = await send(`${url}/api/rooms/1`, 'PUT', {...roomBody(), capacity: 2});
+        const data = await response.json();
+
+        assert.equal(response.status, 409);
+        assert.equal(data.error, 'Não é possível reduzir a capacidade para 2: há reserva com 3 hóspedes neste quarto.');
+        assert.equal(rooms[0].capacity, 3);
+    });
+});
+
+test('Deve permitir capacidade igual à maior reserva do quarto', async () => {
+    await withApi(async (url, rooms, _blocked, largestGuests) => {
+        await send(`${url}/api/rooms`, 'POST', {...roomBody(), capacity: 4});
+        largestGuests.set(rooms[0].id, 2);
+
+        const response = await send(`${url}/api/rooms/1`, 'PUT', {...roomBody(), capacity: 2});
+
+        assert.equal(response.status, 200);
+        assert.equal(rooms[0].capacity, 2);
     });
 });
 

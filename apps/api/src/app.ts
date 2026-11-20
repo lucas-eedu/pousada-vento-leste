@@ -1,12 +1,8 @@
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { handlerRoomsRoutes } from './rooms/rooms.routes.js';
-import { handleReservationsRoutes } from './reservations/reservations.routes.js';
 import type { Pool } from 'pg';
-
-function sendJson(response: ServerResponse, status: number, body: object): void {
-  response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-  response.end(JSON.stringify(body));
-}
+import { handleReservationsRoutes } from './reservations/reservations.routes.js';
+import { handleRoomsRoutes } from './rooms/rooms.routes.js';
+import { getPathname, sendJson } from './utils/http.js';
 
 export function createServer(database: Pool) {
   return createHttpServer(async (request: IncomingMessage, response: ServerResponse) => {
@@ -19,14 +15,14 @@ export function createServer(database: Pool) {
       response.end();
       return;
     }
-    if (request.method === 'GET' && request.url === '/api/health') {
+    if (request.method === 'GET' && getPathname(request) === '/api/health') {
       sendJson(response, 200, { status: 'ok' });
       return;
     }
     if (await handleReservationsRoutes(request, response, database)) {
       return;
     }
-    if (await handlerRoomsRoutes(request, response, database)) {
+    if (await handleRoomsRoutes(request, response, database)) {
       return;
     }
     sendJson(response, 404, { error: 'Rota não encontrada' });

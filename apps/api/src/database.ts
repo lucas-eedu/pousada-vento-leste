@@ -1,4 +1,23 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
+
+/** Pool ou client de transação: os repositórios aceitam os dois. */
+export type Queryable = Pool | PoolClient;
+
+/** Executa `work` em uma transação, com COMMIT no sucesso e ROLLBACK em caso de erro. */
+export async function withTransaction<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await work(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 export async function initializeDatabase(pool: Pool): Promise<void> {
   await pool.query(`

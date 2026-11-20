@@ -4,7 +4,9 @@ import type { AddressInfo } from 'node:net';
 import { Pool } from 'pg';
 import { createServer } from '../app.js';
 import { initializeDatabase } from '../database.js';
-import { isIsoDate, parseId, validateReservationInput } from './reservations.validation.js';
+import { updateRoomKeepingReservationsValid } from '../rooms/rooms.service.js';
+import { parseId } from '../utils/ids.js';
+import { isIsoDate, validateReservationInput } from './reservations.validation.js';
 
 const databaseRequired = { skip: !process.env.DATABASE_URL && 'Defina DATABASE_URL para o PostgreSQL de teste' };
 
@@ -166,5 +168,20 @@ test('rejeita entrada inválida com 400 e mensagem clara', databaseRequired, asy
     );
     assert.deepEqual(await request('GET', '/api/rooms/abc/reservations'), { status: 400, body: { error: 'ID de quarto inválido.' } });
     assert.deepEqual(await request('DELETE', '/api/reservations/abc'), { status: 400, body: { error: 'ID de reserva inválido.' } });
+  });
+});
+
+test('impede reduzir a capacidade do quarto abaixo de uma reserva existente', databaseRequired, async () => {
+  await withApi(async ({ request, roomId, pool }) => {
+    assert.equal((await request('POST', `/api/rooms/${roomId}/reservations`, reservationBody({ guest_count: 2 }))).status, 201);
+    const { rows: [room] } = await pool.query('SELECT number, daily_rate FROM rooms WHERE id = $1', [roomId]);
+    const input = { number: room.number, capacity: 1, daily_rate: Number(room.daily_rate), description: '' };
+
+    await assert.rejects(updateRoomKeepingReservationsValid(pool, roomId, input), /reduzir a capacidade para 1/);
+    const { rows: [unchanged] } = await pool.query('SELECT capacity FROM rooms WHERE id = $1', [roomId]);
+    assert.equal(unchanged.capacity, 2);
+
+    const updated = await updateRoomKeepingReservationsValid(pool, roomId, { ...input, capacity: 2 });
+    assert.equal(updated?.capacity, 2);
   });
 });
