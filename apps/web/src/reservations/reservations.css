@@ -1,0 +1,46 @@
+.reservation-room-info {
+  margin: 8px 0 0;
+  color: #657a70;
+  font-size: 14px;
+}
+
+.reservation-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reservation-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 12px;
+  background: #f8faf6;
+  border-radius: 10px;
+}
+
+.reservation-dates small {
+  display: block;
+  color: #657a70;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.reservation-dates strong {
+  font-size: 14px;
+}
+
+.reservation-card h3 {
+  overflow-wrap: anywhere;
+}
+
+.reservation-card .room-actions {
+  margin-top: auto;
+}
+
+@media (max-width: 800px) {
+  .reservation-header-actions {
+    width: 100%;
+  }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RoomsPage } from './rooms/RoomsPage';
 import type { Room } from './rooms/roomsApi';
+import { ReservationsPage } from './reservations/ReservationsPage';
 
 type Section = 'inicio' | 'quartos' | 'reservas';
 
@@ -65,14 +66,45 @@ export function App() {
         </section>
         {section === 'quartos' ? (
           <RoomsPage onViewReservations={viewReservations} />
+
+        ) : section === 'reservas' ? (
+
+          selectedRoom ? (
+            <ReservationsPage
+              key={selectedRoom.id}
+              room={selectedRoom}
+              onBack={() => goTo('quartos')}
+            />
+          ) : (
+            <section className="content-card">
+              <div className="card-icon">▤</div>
+
+              <div>
+                <p className="eyebrow">AGENDA</p>
+                <h2>Escolha um quarto</h2>
+
+                <p>
+                  Selecione um quarto para consultar e gerenciar suas reservas.
+                </p>
+
+                <button
+                  className="btn btn-primary"
+                  onClick={() => goTo('quartos')}
+                >
+                  Ver quartos
+                </button>
+              </div>
+            </section>
+          )
+
         ) : (
-          <section className="content-card" aria-live="polite">
-            <div className="card-icon">{section === 'inicio' ? '✧' : '▤'}</div>
+          <section className="content-card">
+            <div className="card-icon">✧</div>
+
             <div>
-              <p className="eyebrow">EM CONSTRUÇÃO</p>
-              <h2>{section === 'inicio' ? 'Boas-vindas ao projeto' : selectedRoom ? `Reservas do quarto ${selectedRoom.number}` : 'Módulo de reservas'}</h2>
-              <p>{section === 'inicio' ? 'Esta é a base visual da aplicação. Use o menu para conhecer os espaços que serão desenvolvidos pela equipe.' : 'Esta área foi preparada para receber a listagem, os formulários e as mensagens de validação.'}</p>
-              {selectedRoom && <button type="button" className="btn btn-ghost btn-small back-button" onClick={() => goTo('quartos')}>← Voltar aos quartos</button>}
+              <p className="eyebrow">PAINEL DA POUSADA</p>
+              <h2>Boas-vindas ao projeto</h2>
+              <p>Gerencie os quartos e as reservas da pousada.</p>
             </div>
           </section>
         )}
