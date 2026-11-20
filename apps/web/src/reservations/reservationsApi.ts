@@ -4,6 +4,9 @@ export interface Reservation {
   id: number;
   room_id: number;
   guest_name: string;
+  /** Somente dígitos, com DDD. */
+  guest_phone: string;
+  guest_email: string;
   guest_count: number;
   check_in: string;
   check_out: string;
@@ -13,6 +16,8 @@ export interface Reservation {
 
 export interface ReservationInput {
   guest_name: string;
+  guest_phone: string;
+  guest_email: string;
   guest_count: number;
   check_in: string;
   check_out: string;

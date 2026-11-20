@@ -43,4 +43,7 @@
   .reservation-header-actions {
     width: 100%;
   }
-}
+}.reservation-contact { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 13px; }
+.reservation-contact a { color: #315d4d; text-decoration: none; overflow-wrap: anywhere; }
+.reservation-contact a:hover { text-decoration: underline; }
+.reservation-contact:empty { display: none; }

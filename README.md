@@ -131,11 +131,15 @@ As rotas validam campos obrigatórios e a ordem das datas antes de chamar essa f
 
 ### Rotas de reservas
 
-Implementadas em `apps/api/src/reservations/` (rotas, validação e acesso ao banco) e testadas com PostgreSQL real em `reservations.test.ts`. O corpo de criação e edição é o mesmo; `notes` é opcional:
+Implementadas em `apps/api/src/reservations/` (rotas, validação e acesso ao banco) e testadas com PostgreSQL real em `reservations.test.ts`. O corpo de criação e edição é o mesmo; `guest_email` e `notes` são opcionais:
 
 ```json
-{ "guest_name": "Maria Souza", "guest_count": 2, "check_in": "2026-12-10", "check_out": "2026-12-12", "notes": "Chegada após 22h" }
+{ "guest_name": "Maria Souza", "guest_phone": "(85) 99999-0000", "guest_email": "maria@exemplo.com", "guest_count": 2, "check_in": "2026-12-10", "check_out": "2026-12-12", "notes": "Chegada após 22h" }
 ```
+
+- `guest_phone`: obrigatório, com DDD e 8 ou 9 dígitos. Aceita máscara, mas é gravado e devolvido só com os dígitos (`85999990000`). A interface mostra o número formatado.
+- `guest_email`: opcional; quando informado, precisa ter formato válido e é gravado em minúsculas.
+- Bancos criados antes desses campos recebem as colunas automaticamente quando a API inicia (`database.ts`).
 
 Respostas de sucesso devolvem a reserva com `id`, `room_id`, os campos acima e `created_at`. As datas sempre voltam como texto `AAAA-MM-DD`. A listagem vem ordenada pela data de entrada. Na edição, a reserva continua no mesmo quarto.
 
@@ -143,7 +147,7 @@ Respostas de sucesso devolvem a reserva com `id`, `room_id`, os campos acima e `
 |---|---|---|
 | Criação | 201 | — |
 | Listagem, edição, exclusão | 200 | exclusão: `{ "message": "Reserva excluída com sucesso." }` |
-| Campo ausente/inválido, saída não posterior à entrada, ID inválido, JSON inválido | 400 | `A data de saída deve ser posterior à data de entrada.` |
+| Campo ausente/inválido, saída não posterior à entrada, ID inválido, JSON inválido | 400 | `A data de saída deve ser posterior à data de entrada.` / `Informe um telefone válido com DDD, por exemplo (85) 99999-9999.` |
 | Quarto ou reserva inexistente | 404 | `Quarto não encontrado.` / `Reserva não encontrada.` |
 | Período sobreposto no mesmo quarto | 409 | `Já existe uma reserva para esse quarto no período informado.` |
 | Hóspedes acima da capacidade | 422 | `O número de hóspedes excede a capacidade do quarto.` |
@@ -156,7 +160,7 @@ curl -c cookies.txt -X POST http://localhost:3000/api/auth/login \
 
 curl -b cookies.txt -X POST http://localhost:3000/api/rooms/1/reservations \
   -H 'Content-Type: application/json' \
-  -d '{"guest_name":"Maria Souza","guest_count":2,"check_in":"2026-12-10","check_out":"2026-12-12"}'
+  -d '{"guest_name":"Maria Souza","guest_phone":"(85) 99999-0000","guest_count":2,"check_in":"2026-12-10","check_out":"2026-12-12"}'
 ```
 
 ### Documentação interativa dos quartos — Swagger
