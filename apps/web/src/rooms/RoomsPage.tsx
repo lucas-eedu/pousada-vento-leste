@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RoomForm } from './RoomForm';
-import { ApiError, createRoom, deleteRoom, listRooms, updateRoom, type Room, type RoomInput } from './roomsApi';
+import { ApiError, errorMessage } from '../api';
+import { createRoom, deleteRoom, listRooms, updateRoom, type Room, type RoomInput } from './roomsApi';
 import './rooms.css';
 
 type FormState = { open: false } | { open: true; room: Room | null };
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-
-function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : 'Ocorreu um erro inesperado. Tente novamente.';
-}
 
 interface RoomsPageProps {
   onViewReservations: (room: Room) => void;

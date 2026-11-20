@@ -1,27 +1,39 @@
 # Pousada Vento Leste
 
-Projeto da disciplina **N695 - Desenvolvimento de Plataformas Web** da Universidade de Fortaleza. O sistema apoiará o cadastro dos oito quartos da pousada e o controle das reservas, evitando conflitos de datas e reservas acima da capacidade de cada quarto.
+Projeto da disciplina **N695 - Desenvolvimento de Plataformas Web** da Universidade de Fortaleza. O sistema cadastra os quartos da pousada e controla as reservas de cada um, impedindo conflitos de datas e reservas acima da capacidade do quarto.
 
-> **Estado atual:** base do projeto. A navegação, a conexão entre interface e API, o banco e as tabelas estão preparados. As operações de cadastro, edição, listagem e exclusão serão desenvolvidas pela equipe conforme [DIVISAO_DA_EQUIPE.md](DIVISAO_DA_EQUIPE.md). As telas marcadas como “Em construção” ainda não representam funcionalidades prontas.
+**Funcionalidades:**
+
+- **Quartos:** listar, cadastrar, editar e excluir. Número com 3 dígitos e sem repetição, capacidade de 1 a 4 hóspedes, diária positiva e descrição opcional. Um quarto com reservas não pode ser excluído, e a capacidade não pode ficar abaixo do número de hóspedes de uma reserva existente.
+- **Reservas de um quarto:** listar, cadastrar, editar e excluir. Campos obrigatórios, saída posterior à entrada, hóspedes dentro da capacidade do quarto e nenhum período sobreposto no mesmo quarto.
+- As regras são verificadas na interface, para orientar o usuário, e de forma definitiva na API, que devolve mensagens claras com o status HTTP adequado.
 
 ## O que é um monorepo?
 
 É um único repositório com mais de uma aplicação. A pasta `apps/api` contém o servidor e o acesso ao PostgreSQL. A pasta `apps/web` contém a interface React. O `package.json` da raiz usa **npm workspaces** para instalar dependências e executar comandos das duas aplicações em conjunto. Assim, todos trabalham no mesmo GitHub, mas cada módulo tem uma responsabilidade clara.
 
+Cada módulo da API separa as camadas: `*.routes.ts` trata HTTP, `*.validation.ts` valida a entrada, `*.service.ts` e `reservationAvailability.ts` aplicam as regras de negócio, e `*.repository.ts` acessa o banco.
+
 ```text
 .
 ├── apps/
-│   ├── api/
-│   │   ├── src/app.ts          # Rotas HTTP e respostas JSON
-│   │   ├── src/database.ts     # Estrutura das tabelas no PostgreSQL
-│   │   └── src/server.ts       # Inicialização do servidor
-│   └── web/
-│       ├── src/App.tsx         # Navegação e áreas da interface
-│       ├── src/styles.css      # Estilos visuais
-│       └── vite.config.ts      # Servidor de desenvolvimento e proxy da API
-├── docker-compose.yml         # API, interface, PostgreSQL e volume do banco
-├── DIVISAO_DA_EQUIPE.md       # Responsabilidades e evidências
-└── package.json               # Scripts compartilhados
+│   ├── api/src/
+│   │   ├── app.ts                       # Servidor HTTP, CORS, healthcheck e roteamento
+│   │   ├── server.ts                    # Conexão com o banco e inicialização
+│   │   ├── database.ts                  # Tabelas e transações no PostgreSQL
+│   │   ├── reservationAvailability.ts   # Regra de capacidade e de datas sem sobreposição
+│   │   ├── rooms/                       # Rotas, validação, serviço, acesso a dados e Swagger dos quartos
+│   │   ├── reservations/                # Rotas, validação e acesso a dados das reservas
+│   │   └── utils/                       # Respostas JSON, leitura do corpo, IDs e erros do PostgreSQL
+│   └── web/src/
+│       ├── App.tsx                      # Navegação entre visão geral, quartos e reservas
+│       ├── api.ts                       # Cliente HTTP da API e mensagens de erro
+│       ├── rooms/                       # Lista, formulário, validação e chamadas de quartos
+│       ├── reservations/                # Lista, formulário, validação e chamadas de reservas
+│       └── styles.css                   # Estilos gerais
+├── docker-compose.yml                   # API, interface, PostgreSQL e volume do banco
+├── DIVISAO_DA_EQUIPE.md                 # Responsabilidades e evidências
+└── package.json                         # Scripts compartilhados
 ```
 
 ## Como executar com Docker
@@ -53,15 +65,15 @@ Abra http://localhost:5173. O Vite encaminha `/api` para `http://localhost:3000`
 | `npm run dev` | Inicia API e interface em desenvolvimento |
 | `npm run build` | Compila as duas aplicações |
 | `npm run typecheck` | Verifica os tipos TypeScript |
-| `docker compose exec api npm test` | Executa os testes da API com o PostgreSQL do Compose |
+| `docker compose exec api npm test` | Executa todos os testes da API com o PostgreSQL do Compose |
 | `npm run dev --workspace @pousada/api` | Inicia somente a API |
 | `npm run dev --workspace @pousada/web` | Inicia somente a interface |
 
 ## Como a aplicação conversa
 
-O navegador acessa o React na porta 5173. A interface faz requisições a URLs iniciadas por `/api`. Durante o desenvolvimento, o Vite encaminha essas requisições ao servidor Node na porta 3000. O servidor valida a entrada, executa as regras de negócio e consulta o PostgreSQL pela variável `DATABASE_URL`. As respostas são JSON; os erros devem ter status HTTP apropriado e uma mensagem compreensível para o usuário.
+O navegador acessa o React na porta 5173. A interface faz requisições a URLs iniciadas por `/api`. Durante o desenvolvimento, o Vite encaminha essas requisições ao servidor Node na porta 3000. O servidor valida a entrada, executa as regras de negócio e consulta o PostgreSQL pela variável `DATABASE_URL`. As respostas são JSON; os erros têm status HTTP apropriado e uma mensagem compreensível para o usuário.
 
-O endpoint `/api/health` já funciona. As futuras rotas de quartos e reservas devem seguir este contrato:
+O endpoint `/api/health` confirma que a API está no ar. As rotas de quartos e reservas são:
 
 | Método | Rota | Ação |
 |---|---|---|
@@ -74,13 +86,33 @@ O endpoint `/api/health` já funciona. As futuras rotas de quartos e reservas de
 | `PUT` | `/api/reservations/:id` | Atualizar reserva |
 | `DELETE` | `/api/reservations/:id` | Excluir reserva |
 
-No banco, `rooms.id` identifica um quarto. `reservations.room_id` aponta para ele. A chave estrangeira impede reservas para quartos inexistentes e impede excluir um quarto com reservas. O PostgreSQL também exige capacidade, diária e número de hóspedes positivos e saída posterior à entrada. As regras de **hóspedes dentro da capacidade** e **datas sem sobreposição** devem ser validadas no serviço antes de gravar. Para datas, use o formato ISO `AAAA-MM-DD`; intervalos podem encostar (`check_out` de uma reserva igual ao `check_in` de outra).
+### Rotas de quartos
+
+Implementadas em `apps/api/src/rooms/` e testadas em `rooms.test.ts`. Corpo de cadastro e edição (`description` é opcional):
+
+```json
+{ "number": "101", "capacity": 2, "daily_rate": 180.5, "description": "Quarto com varanda" }
+```
+
+| Situação | Status | Exemplo de `error` |
+|---|---|---|
+| Cadastro | 201 | — |
+| Listagem, edição, exclusão | 200 | exclusão: `{ "message": "Quarto excluído com sucesso." }` |
+| Campo ausente/inválido, ID inválido, JSON inválido | 400 | `A capacidade deve ser um número inteiro de 1 a 4 hóspedes.` |
+| Quarto inexistente | 404 | `Quarto não encontrado.` |
+| Número repetido | 409 | `Número de quarto já existe.` |
+| Exclusão de quarto com reservas | 409 | `Não é possível excluir o quarto com reservas associadas.` |
+| Capacidade menor que uma reserva existente | 409 | `Não é possível reduzir a capacidade para 1: há reserva com 2 hóspedes neste quarto.` |
+
+### Banco de dados e regras
+
+No banco, `rooms.id` identifica um quarto. `reservations.room_id` aponta para ele. A chave estrangeira impede reservas para quartos inexistentes e impede excluir um quarto com reservas. O PostgreSQL também exige capacidade, diária e número de hóspedes positivos e saída posterior à entrada. As regras de **hóspedes dentro da capacidade** e **datas sem sobreposição** são validadas no serviço antes de gravar. Para datas, use o formato ISO `AAAA-MM-DD`; intervalos podem encostar (`check_out` de uma reserva igual ao `check_in` de outra).
 
 ### Regra de disponibilidade para as rotas de reservas
 
 O arquivo `apps/api/src/reservationAvailability.ts` oferece `withReservationAvailability(pool, input, save)`. Nas rotas de **criação e edição**, informe `roomId`, `guestCount`, `checkIn` e `checkOut`; na edição, informe também `excludeReservationId` com o ID da reserva editada. A função consulta a capacidade e os conflitos de datas, depois executa `save` na **mesma transação**. O callback `save` deve gravar usando o `client` recebido, nunca `pool.query`, para preservar essa garantia.
 
-As rotas devem validar campos obrigatórios e a ordem das datas antes de chamar essa função. Trate `ReservationAvailabilityError` conforme o `code`: `ROOM_NOT_FOUND` → HTTP 404, `CAPACITY_EXCEEDED` → HTTP 422 e `DATE_CONFLICT` → HTTP 409. A propriedade `message` já contém uma explicação para o usuário. Os testes em `apps/api/src/reservationAvailability.test.ts` mostram chamadas de criação e edição.
+As rotas validam campos obrigatórios e a ordem das datas antes de chamar essa função. Trate `ReservationAvailabilityError` conforme o `code`: `ROOM_NOT_FOUND` → HTTP 404, `CAPACITY_EXCEEDED` → HTTP 422 e `DATE_CONFLICT` → HTTP 409. A propriedade `message` já contém uma explicação para o usuário. Os testes em `apps/api/src/reservationAvailability.test.ts` mostram chamadas de criação e edição. A edição de um quarto (`rooms.service.ts`) bloqueia o mesmo registro antes de conferir as reservas, por isso uma reserva nova e uma redução de capacidade não conseguem passar ao mesmo tempo.
 
 ### Rotas de reservas
 

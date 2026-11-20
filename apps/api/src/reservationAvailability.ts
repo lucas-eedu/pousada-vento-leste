@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { withTransaction } from './database.js';
 
 export type ReservationAvailabilityInput = {
   roomId: number;
@@ -29,10 +30,7 @@ export async function withReservationAvailability<T>(
   input: ReservationAvailabilityInput,
   save: (client: PoolClient) => Promise<T>
 ): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
+  return withTransaction(pool, async client => {
     const room = await client.query<{ capacity: number }>(
       'SELECT capacity FROM rooms WHERE id = $1 FOR UPDATE',
       [input.roomId]
@@ -57,13 +55,6 @@ export async function withReservationAvailability<T>(
       throw new ReservationAvailabilityError('DATE_CONFLICT', 'Já existe uma reserva para esse quarto no período informado.');
     }
 
-    const result = await save(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+    return save(client);
+  });
 }

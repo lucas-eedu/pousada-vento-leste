@@ -1,4 +1,5 @@
-import type { Pool, PoolClient } from 'pg';
+import type { PoolClient } from 'pg';
+import type { Queryable } from '../database.js';
 
 export interface Reservation {
   id: number;
@@ -25,11 +26,13 @@ const COLUMNS = `id, room_id, guest_name, guest_count,
   to_char(check_out, 'YYYY-MM-DD') AS check_out,
   notes, created_at`;
 
-type Queryable = Pool | PoolClient;
-
-export async function roomExists(db: Queryable, roomId: number): Promise<boolean> {
-  const result = await db.query('SELECT 1 FROM rooms WHERE id = $1', [roomId]);
-  return (result.rowCount ?? 0) > 0;
+/** Maior número de hóspedes entre as reservas do quarto (0 se não houver reservas). */
+export async function findLargestGuestCount(db: Queryable, roomId: number): Promise<number> {
+  const result = await db.query<{ largest: number }>(
+    'SELECT COALESCE(MAX(guest_count), 0)::integer AS largest FROM reservations WHERE room_id = $1',
+    [roomId]
+  );
+  return result.rows[0]?.largest ?? 0;
 }
 
 export async function findReservationsByRoom(db: Queryable, roomId: number): Promise<Reservation[]> {

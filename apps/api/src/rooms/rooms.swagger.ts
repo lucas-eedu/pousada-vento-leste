@@ -162,7 +162,7 @@ const openApiDocument = {
                         }
                     },
                     '409': {
-                        description: 'Número de quarto já cadastrado.',
+                        description: 'Número de quarto já cadastrado, ou nova capacidade menor que o número de hóspedes de uma reserva do quarto.',
                         content: {
                             'application/json': {
                                 schema: errorSchema

@@ -1,160 +1,121 @@
-import { handleSwaggerRoutes } from './rooms.swagger.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Pool } from 'pg';
-import { createRoom, deleteRoom, findAllRooms, updateRoom } from './rooms.repository.js';
-import { readJsonBody } from '../utils/read-json-body.js';
-import { parseRoomId, validateRoomInput } from './rooms.validation.js';
+import { getPathname, readJsonBodyOrReply, sendInternalError, sendJson } from '../utils/http.js';
+import { parseId } from '../utils/ids.js';
+import { FOREIGN_KEY_VIOLATION, hasPostgresCode, UNIQUE_VIOLATION } from '../utils/postgres-errors.js';
+import { createRoom, deleteRoom, findAllRooms } from './rooms.repository.js';
+import { RoomCapacityConflictError, updateRoomKeepingReservationsValid } from './rooms.service.js';
+import { handleSwaggerRoutes } from './rooms.swagger.js';
+import { parseRoomInput } from './rooms.validation.js';
+import type { RoomInput } from './rooms.repository.js';
 
-export async function handlerRoomsRoutes(request: IncomingMessage, response: ServerResponse, database: Pool): Promise<boolean> {
-        
-        if (handleSwaggerRoutes(request, response)) { return true;}
+/** Lê e valida o corpo do quarto. Em caso de erro, já responde e devolve undefined. */
+async function readRoomBody(request: IncomingMessage, response: ServerResponse): Promise<RoomInput | undefined> {
+    const body = await readJsonBodyOrReply(request, response);
+    if (!body) return undefined;
 
-        if (request.method === 'GET' && request.url === '/api/rooms') {
-                try {
-                        const rooms = await findAllRooms(database);
-                        response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                        response.end(JSON.stringify(rooms));
-                        return true;
-                } catch (error) {
-                        console.error('Erro ao buscar quartos:', error);
-                        response.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-                        response.end(JSON.stringify({ error: 'Erro interno do servidor.' }));
-                        return true;
-                }
+    const result = parseRoomInput(body.data);
+    if (!result.ok) {
+        sendJson(response, 400, { error: result.error });
+        return undefined;
+    }
+    return result.input;
+}
+
+function handleRoomError(response: ServerResponse, error: unknown, context: string): void {
+    if (hasPostgresCode(error, UNIQUE_VIOLATION)) {
+        sendJson(response, 409, { error: 'Número de quarto já existe.' });
+        return;
+    }
+    if (hasPostgresCode(error, FOREIGN_KEY_VIOLATION)) {
+        sendJson(response, 409, { error: 'Não é possível excluir o quarto com reservas associadas.' });
+        return;
+    }
+    if (error instanceof RoomCapacityConflictError) {
+        sendJson(response, 409, { error: error.message });
+        return;
+    }
+    sendInternalError(response, context, error);
+}
+
+async function listRooms(response: ServerResponse, database: Pool): Promise<void> {
+    try {
+        sendJson(response, 200, await findAllRooms(database));
+    } catch (error) {
+        handleRoomError(response, error, 'listar quartos');
+    }
+}
+
+async function createRoomFromRequest(request: IncomingMessage, response: ServerResponse, database: Pool): Promise<void> {
+    const input = await readRoomBody(request, response);
+    if (!input) return;
+
+    try {
+        sendJson(response, 201, await createRoom(database, input));
+    } catch (error) {
+        handleRoomError(response, error, 'criar quarto');
+    }
+}
+
+async function updateRoomFromRequest(request: IncomingMessage, response: ServerResponse, database: Pool, id: number): Promise<void> {
+    const input = await readRoomBody(request, response);
+    if (!input) return;
+
+    try {
+        const updatedRoom = await updateRoomKeepingReservationsValid(database, id, input);
+        if (!updatedRoom) {
+            sendJson(response, 404, { error: 'Quarto não encontrado.' });
+            return;
         }
+        sendJson(response, 200, updatedRoom);
+    } catch (error) {
+        handleRoomError(response, error, 'atualizar quarto');
+    }
+}
 
-
-        if (request.method === 'POST' && request.url === '/api/rooms') {
-                let data: unknown;
-                try {
-                        data = await readJsonBody(request);
-                } catch (error) {
-                        const message = error instanceof Error ? error.message : '';
-                        const status = message === 'BODY_TOO_LARGE' ? 413 : 400;
-                        response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-                        response.end(JSON.stringify({ error: status === 413 ? 'Corpo da requisição muito grande.' : 'JSON inválido.' }));
-                        return true;
-                }
-
-                if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
-                        const room = data as Record<string, unknown>;
-                        if (room.description === undefined) { room.description = ''; }
-                }
-
-                if (!validateRoomInput(data)) {
-                        response.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-                        response.end(JSON.stringify({ error: 'Dados inválidos para criação de quarto.' }));
-                        return true;
-                }
-
-                const roomInput = { ...data, number: data.number.trim() };
-
-                try {
-                        const createdRoom = await createRoom(database, roomInput);
-                        response.writeHead(201, { 'Content-Type': 'application/json; charset=utf-8' });
-                        response.end(JSON.stringify(createdRoom));
-                        return true;
-                } catch (error) {
-                        if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
-                                response.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
-                                response.end(JSON.stringify({ error: 'Número de quarto já existe.' }));
-                                return true;
-                        }
-                        console.error('Erro ao criar quarto:', error);
-                        response.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-                        response.end(JSON.stringify({ error: 'Erro interno do servidor.' }));
-                        return true;
-                }
+async function deleteRoomById(response: ServerResponse, database: Pool, id: number): Promise<void> {
+    try {
+        if (!(await deleteRoom(database, id))) {
+            sendJson(response, 404, { error: 'Quarto não encontrado.' });
+            return;
         }
-        const matchId = request.url?.match(/^\/api\/rooms\/([^/]+)$/);
+        sendJson(response, 200, { message: 'Quarto excluído com sucesso.' });
+    } catch (error) {
+        handleRoomError(response, error, 'excluir quarto');
+    }
+}
 
-        if (request.method === 'PUT' && matchId) {
-                const id = parseRoomId(matchId[1]);
-                if (id === null) {response.writeHead(400, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify({error: 'ID de quarto inválido.'}));
-                        return true;
-                }
+/** Atende as rotas de quartos. Devolve false quando a requisição não pertence a este módulo. */
+export async function handleRoomsRoutes(request: IncomingMessage, response: ServerResponse, database: Pool): Promise<boolean> {
+    if (handleSwaggerRoutes(request, response)) return true;
 
-                let data: unknown;
-                try {
-                        data = await readJsonBody(request);
-                } catch (error) {
-                        const message = error instanceof Error ? error.message : '';
-                        const status = message === 'BODY_TOO_LARGE' ? 413 : 400;
+    const pathname = getPathname(request);
 
-                        response.writeHead(status, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify({error: status === 413 ? 'Corpo da requisição muito grande.' : 'JSON inválido.'}));
-                        return true;
-                }
-
-                if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
-                        const room = data as Record<string, unknown>;
-                        if (room.description === undefined) {
-                                room.description = '';
-                        }
-                }
-
-                if (!validateRoomInput(data)) {
-                        response.writeHead(400, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify({error: 'Dados inválidos para atualização de quarto.'}));
-                        return true;
-                }
-
-                const roomInput = {...data, number: data.number.trim()};
-                try {
-                        const updatedRoom = await updateRoom(database, id, roomInput);
-                        if (updatedRoom === undefined) {
-                                response.writeHead(404, {'Content-Type': 'application/json; charset=utf-8'});
-                                response.end(JSON.stringify({error: 'Quarto não encontrado.'}));
-                                return true;
-                        }
-
-                        response.writeHead(200, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify(updatedRoom));
-                        return true;
-                } catch (error) {
-                        if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
-                                response.writeHead(409, {'Content-Type': 'application/json; charset=utf-8'});
-                                response.end(JSON.stringify({error: 'Número de quarto já existe.'}));
-                                return true;
-                        }
-                        console.error('Erro ao atualizar quarto:', error);
-                        response.writeHead(500, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify({error: 'Erro interno do servidor.'}));
-                        return true;
-                }
-
+    if (pathname === '/api/rooms') {
+        if (request.method === 'GET') {
+            await listRooms(response, database);
+            return true;
         }
-
-        if (request.method === 'DELETE' && matchId) {
-                const id = parseRoomId(matchId[1]);
-                if (id === null) { response.writeHead(400, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify({error: 'ID de quarto inválido.'}));
-                        return true;
-                }
-
-                try {
-                        const deletedRoom = await deleteRoom(database, id);
-                        if (!deletedRoom) { response.writeHead(404, {'Content-Type': 'application/json; charset=utf-8'});
-                                response.end(JSON.stringify({error: 'Quarto não encontrado.'}));
-                                return true;
-                        }
-                        response.writeHead(200, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify({message: 'Quarto excluído com sucesso.'}));
-                        return true;
-                } catch (error) {
-                        if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23503') {
-                                response.writeHead(409, {'Content-Type': 'application/json; charset=utf-8'});
-                                response.end(JSON.stringify({error: 'Não é possível excluir o quarto com reservas associadas.'}));
-                                return true;
-                        }
-                        console.error('Erro ao excluir quarto:', error);
-                        response.writeHead(500, {'Content-Type': 'application/json; charset=utf-8'});
-                        response.end(JSON.stringify({error: 'Erro interno do servidor.'}));
-                        return true;
-                }
+        if (request.method === 'POST') {
+            await createRoomFromRequest(request, response, database);
+            return true;
         }
-
         return false;
+    }
 
+    const idMatch = pathname.match(/^\/api\/rooms\/([^/]+)$/);
+    if (!idMatch || (request.method !== 'PUT' && request.method !== 'DELETE')) return false;
+
+    const id = parseId(idMatch[1]);
+    if (id === null) {
+        sendJson(response, 400, { error: 'ID de quarto inválido.' });
+        return true;
+    }
+
+    if (request.method === 'PUT') {
+        await updateRoomFromRequest(request, response, database, id);
+    } else {
+        await deleteRoomById(response, database, id);
+    }
+    return true;
 }

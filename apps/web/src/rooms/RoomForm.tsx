@@ -74,7 +74,7 @@ export function RoomForm({ room, saving, serverError, onSubmit, onCancel }: Room
       <div className="form-grid">
         <div className="field">
           <label htmlFor="room-number">Número do quarto *</label>
-          <input {...fieldProps('number')} ref={firstFieldRef} required maxLength={20} placeholder="Ex.: 101" onChange={(e) => update('number', e.target.value)} />
+          <input {...fieldProps('number')} ref={firstFieldRef} required maxLength={3} inputMode="numeric" placeholder="Ex.: 101" onChange={(e) => update('number', e.target.value)} />
           {fieldError('number')}
         </div>
         <div className="field">
@@ -90,6 +90,7 @@ export function RoomForm({ room, saving, serverError, onSubmit, onCancel }: Room
         <div className="field field-wide">
           <label htmlFor="room-description">Descrição</label>
           <textarea {...fieldProps('description')} rows={3} maxLength={500} placeholder="Ex.: Vista para o mar, cama de casal e varanda." onChange={(e) => update('description', e.target.value)} />
+          {fieldError('description')}
         </div>
       </div>
 

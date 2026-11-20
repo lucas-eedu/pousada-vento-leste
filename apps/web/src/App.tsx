@@ -9,7 +9,7 @@ const sections: Record<Section, { title: string; eyebrow: string; description: s
   inicio: {
     title: 'Hospitalidade em cada detalhe.',
     eyebrow: 'PAINEL DA POUSADA',
-    description: 'Uma visão simples do que acontece na Vento Leste. Em breve, os quartos e as reservas estarão reunidos aqui.'
+    description: 'Uma visão simples do que acontece na Vento Leste: cadastre os quartos e controle as reservas de cada um.'
   },
   quartos: {
     title: 'Quartos',
@@ -19,7 +19,7 @@ const sections: Record<Section, { title: string; eyebrow: string; description: s
   reservas: {
     title: 'Reservas',
     eyebrow: 'AGENDA',
-    description: 'Aqui a equipe irá gerenciar as reservas e conferir datas, capacidade e disponibilidade.'
+    description: 'Consulte, cadastre, edite e exclua as reservas de cada quarto, com conferência de datas e capacidade.'
   }
 };
 
@@ -103,8 +103,9 @@ export function App() {
 
             <div>
               <p className="eyebrow">PAINEL DA POUSADA</p>
-              <h2>Boas-vindas ao projeto</h2>
-              <p>Gerencie os quartos e as reservas da pousada.</p>
+              <h2>Boas-vindas à Pousada Vento Leste</h2>
+              <p>Comece pelos quartos e escolha um deles para ver e gerenciar as reservas.</p>
+              <button className="btn btn-primary" onClick={() => goTo('quartos')}>Ver quartos</button>
             </div>
           </section>
         )}
