@@ -54,7 +54,16 @@ async function withApi(run: (api: Api) => Promise<void>): Promise<void> {
 }
 
 function reservationBody(overrides: Record<string, unknown> = {}) {
-  return { guest_name: 'Hóspede Teste', guest_count: 2, check_in: '2026-12-10', check_out: '2026-12-12', notes: '', ...overrides };
+  return {
+    guest_name: 'Hóspede Teste',
+    guest_phone: '(85) 99999-0000',
+    guest_email: 'hospede@exemplo.com',
+    guest_count: 2,
+    check_in: '2026-12-10',
+    check_out: '2026-12-12',
+    notes: '',
+    ...overrides
+  };
 }
 
 test('valida o corpo da reserva antes de consultar o banco', () => {
@@ -66,8 +75,43 @@ test('valida o corpo da reserva antes de consultar o banco', () => {
   assert.equal(validateReservationInput(reservationBody({ check_out: '2026-12-10' })).ok, false);
   assert.equal(validateReservationInput(reservationBody({ notes: 5 })).ok, false);
   assert.equal(validateReservationInput([]).ok, false);
-  const withoutNotes = validateReservationInput({ guest_name: ' Ana ', guest_count: 1, check_in: '2026-12-01', check_out: '2026-12-02' });
-  assert.deepEqual(withoutNotes, { ok: true, input: { guest_name: 'Ana', guest_count: 1, check_in: '2026-12-01', check_out: '2026-12-02', notes: '' } });
+  const withoutOptionals = validateReservationInput({ guest_name: ' Ana ', guest_phone: '85988887777', guest_count: 1, check_in: '2026-12-01', check_out: '2026-12-02' });
+  assert.deepEqual(withoutOptionals, {
+    ok: true,
+    input: { guest_name: 'Ana', guest_phone: '85988887777', guest_email: '', guest_count: 1, check_in: '2026-12-01', check_out: '2026-12-02', notes: '' }
+  });
+});
+
+test('exige telefone com DDD e guarda só os dígitos', () => {
+  const phoneOf = (guest_phone: unknown) => {
+    const result = validateReservationInput(reservationBody({ guest_phone }));
+    return result.ok ? result.input.guest_phone : result.error;
+  };
+  assert.equal(phoneOf('(85) 99999-0000'), '85999990000');
+  assert.equal(phoneOf('85 3222-1100'), '8532221100');
+  assert.equal(phoneOf(undefined), 'Informe o telefone de contato.');
+  assert.equal(phoneOf('   '), 'Informe o telefone de contato.');
+  const invalid = 'Informe um telefone válido com DDD, por exemplo (85) 99999-9999.';
+  assert.equal(phoneOf('99999-0000'), invalid);
+  assert.equal(phoneOf('(05) 99999-0000'), invalid);
+  assert.equal(phoneOf('85 9999A-0000'), invalid);
+  assert.equal(phoneOf('859999900001'), invalid);
+  assert.equal(phoneOf(85999990000), invalid);
+});
+
+test('aceita e-mail opcional e recusa formato inválido', () => {
+  const emailOf = (guest_email: unknown) => {
+    const result = validateReservationInput(reservationBody({ guest_email }));
+    return result.ok ? result.input.guest_email : result.error;
+  };
+  assert.equal(emailOf(' Maria.Souza@Exemplo.com '), 'maria.souza@exemplo.com');
+  assert.equal(emailOf(''), '');
+  assert.equal(emailOf(undefined), '');
+  const invalid = 'Informe um e-mail válido, por exemplo nome@exemplo.com.';
+  assert.equal(emailOf('maria@'), invalid);
+  assert.equal(emailOf('maria exemplo.com'), invalid);
+  assert.equal(emailOf(`${'a'.repeat(250)}@exemplo.com`), invalid);
+  assert.equal(emailOf(10), invalid);
 });
 
 test('aceita apenas datas reais no formato AAAA-MM-DD e IDs positivos', () => {
@@ -88,6 +132,8 @@ test('cria, lista, edita e exclui uma reserva', databaseRequired, async () => {
     assert.equal(created.body.check_in, '2026-12-10');
     assert.equal(created.body.check_out, '2026-12-12');
     assert.equal(created.body.notes, 'Chegada tarde');
+    assert.equal(created.body.guest_phone, '85999990000');
+    assert.equal(created.body.guest_email, 'hospede@exemplo.com');
 
     const listed = await request('GET', `/api/rooms/${roomId}/reservations`);
     assert.equal(listed.status, 200);

@@ -93,6 +93,39 @@ export function ReservationForm({
         </div>
 
         <div className="field">
+          <label htmlFor="guestPhone">Telefone *</label>
+
+          <input
+            id="guestPhone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="(85) 99999-9999"
+            value={values.guestPhone}
+            required
+            onChange={e => update('guestPhone', e.target.value)}
+          />
+
+          {fieldError('guestPhone')}
+        </div>
+
+        <div className="field">
+          <label htmlFor="guestEmail">E-mail</label>
+
+          <input
+            id="guestEmail"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="nome@exemplo.com"
+            value={values.guestEmail}
+            onChange={e => update('guestEmail', e.target.value)}
+          />
+
+          {fieldError('guestEmail')}
+        </div>
+
+        <div className="field">
           <label htmlFor="guestCount">Quantidade de hóspedes *</label>
 
           <input

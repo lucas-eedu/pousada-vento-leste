@@ -5,6 +5,10 @@ export interface Reservation {
   id: number;
   room_id: number;
   guest_name: string;
+  /** Somente dígitos, com DDD. */
+  guest_phone: string;
+  /** Vazio quando não informado. */
+  guest_email: string;
   guest_count: number;
   /** Datas devolvidas como texto AAAA-MM-DD para não sofrer conversão de fuso horário. */
   check_in: string;
@@ -15,13 +19,15 @@ export interface Reservation {
 
 export interface ReservationInput {
   guest_name: string;
+  guest_phone: string;
+  guest_email: string;
   guest_count: number;
   check_in: string;
   check_out: string;
   notes: string;
 }
 
-const COLUMNS = `id, room_id, guest_name, guest_count,
+const COLUMNS = `id, room_id, guest_name, guest_phone, guest_email, guest_count,
   to_char(check_in, 'YYYY-MM-DD') AS check_in,
   to_char(check_out, 'YYYY-MM-DD') AS check_out,
   notes, created_at`;
@@ -51,10 +57,10 @@ export async function findReservationById(db: Queryable, id: number): Promise<Re
 /** Deve receber o client da transação aberta por withReservationAvailability. */
 export async function insertReservation(client: PoolClient, roomId: number, input: ReservationInput): Promise<Reservation> {
   const result = await client.query<Reservation>(
-    `INSERT INTO reservations (room_id, guest_name, guest_count, check_in, check_out, notes)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO reservations (room_id, guest_name, guest_phone, guest_email, guest_count, check_in, check_out, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING ${COLUMNS}`,
-    [roomId, input.guest_name, input.guest_count, input.check_in, input.check_out, input.notes]
+    [roomId, input.guest_name, input.guest_phone, input.guest_email, input.guest_count, input.check_in, input.check_out, input.notes]
   );
   return result.rows[0]!;
 }
@@ -63,10 +69,10 @@ export async function insertReservation(client: PoolClient, roomId: number, inpu
 export async function updateReservation(client: PoolClient, id: number, input: ReservationInput): Promise<Reservation | undefined> {
   const result = await client.query<Reservation>(
     `UPDATE reservations
-     SET guest_name = $1, guest_count = $2, check_in = $3, check_out = $4, notes = $5
-     WHERE id = $6
+     SET guest_name = $1, guest_phone = $2, guest_email = $3, guest_count = $4, check_in = $5, check_out = $6, notes = $7
+     WHERE id = $8
      RETURNING ${COLUMNS}`,
-    [input.guest_name, input.guest_count, input.check_in, input.check_out, input.notes, id]
+    [input.guest_name, input.guest_phone, input.guest_email, input.guest_count, input.check_in, input.check_out, input.notes, id]
   );
   return result.rows[0];
 }

@@ -11,7 +11,7 @@ import {
   type ReservationInput
 } from './reservationsApi';
 
-import { formatReservationDate } from './reservationValidation';
+import { formatPhone, formatReservationDate } from './reservationValidation';
 import './reservations.css';
 
 interface ReservationsPageProps {
@@ -210,6 +210,15 @@ export function ReservationsPage({ room, onBack }: ReservationsPageProps) {
 
               <p className="room-capacity">
                 {reservation.guest_count} hóspede(s)
+              </p>
+
+              <p className="reservation-contact">
+                {reservation.guest_phone && (
+                  <a href={`tel:+55${reservation.guest_phone}`}>{formatPhone(reservation.guest_phone)}</a>
+                )}
+                {reservation.guest_email && (
+                  <a href={`mailto:${reservation.guest_email}`}>{reservation.guest_email}</a>
+                )}
               </p>
 
               <div className="reservation-dates">
