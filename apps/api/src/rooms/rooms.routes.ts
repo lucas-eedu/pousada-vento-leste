@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Pool } from 'pg';
 import { getPathname, readJsonBodyOrReply, sendInternalError, sendJson } from '../utils/http.js';
 import { parseId } from '../utils/ids.js';
-import { FOREIGN_KEY_VIOLATION, hasPostgresCode, UNIQUE_VIOLATION } from '../utils/postgres-errors.js';
+import { hasPostgresCode, isReferencedRowError, UNIQUE_VIOLATION } from '../utils/postgres-errors.js';
 import { createRoom, deleteRoom, findAllRooms } from './rooms.repository.js';
 import { RoomCapacityConflictError, updateRoomKeepingReservationsValid } from './rooms.service.js';
 import { handleSwaggerRoutes } from './rooms.swagger.js';
@@ -27,7 +27,7 @@ function handleRoomError(response: ServerResponse, error: unknown, context: stri
         sendJson(response, 409, { error: 'Número de quarto já existe.' });
         return;
     }
-    if (hasPostgresCode(error, FOREIGN_KEY_VIOLATION)) {
+    if (isReferencedRowError(error)) {
         sendJson(response, 409, { error: 'Não é possível excluir o quarto com reservas associadas.' });
         return;
     }

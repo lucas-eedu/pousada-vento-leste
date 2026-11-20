@@ -31,7 +31,10 @@ function roomBody(number = '101') {
  * exclusão falha) e `largestGuests` guarda o maior número de hóspedes reservado
  * em cada quarto.
  */
-async function withApi(run: (url: string, rooms: TestRoom[], blocked: Set<number>, largestGuests: Map<number, number>) => Promise<void>): Promise<void> {
+async function withApi(
+    run: (url: string, rooms: TestRoom[], blocked: Set<number>, largestGuests: Map<number, number>) => Promise<void>,
+    restrictErrorCode = '23503'
+): Promise<void> {
     const rooms: TestRoom[] = [];
     const blocked = new Set<number>();
     const largestGuests = new Map<number, number>();
@@ -107,7 +110,7 @@ async function withApi(run: (url: string, rooms: TestRoom[], blocked: Set<number
                 }
 
                 if (blocked.has(id)) {
-                    throw Object.assign(new Error('Quarto possui reservas'), {code: '23503'});
+                    throw Object.assign(new Error('Quarto possui reservas'), {code: restrictErrorCode});
                 }
 
                 rooms.splice(index, 1);
@@ -465,4 +468,20 @@ test('Deve impedir exclusão de quarto com reservas', async () => {
         assert.equal(data.error, 'Não é possível excluir o quarto com reservas associadas.');
         assert.equal(rooms.length, 1);
     });
+});
+
+// PostgreSQL 18 informa 23001 (restrict_violation) para ON DELETE RESTRICT; versões anteriores informam 23503.
+test('Deve impedir exclusão de quarto com reservas quando o banco informa restrict_violation', async () => {
+    await withApi(async (url, rooms, blocked) => {
+        await send(`${url}/api/rooms`, 'POST', roomBody());
+
+        blocked.add(rooms[0].id);
+
+        const response = await send(`${url}/api/rooms/1`, 'DELETE');
+        const data = await response.json();
+
+        assert.equal(response.status, 409);
+        assert.equal(data.error, 'Não é possível excluir o quarto com reservas associadas.');
+        assert.equal(rooms.length, 1);
+    }, '23001');
 });
